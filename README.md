@@ -1,4 +1,4 @@
-#lg-earthengine
+#Time Machine Hyperwall
 
 1. [Setting up the master machine](#setup)
 2. [Running the node.js server on the master](#run)
