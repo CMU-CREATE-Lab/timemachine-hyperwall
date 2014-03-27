@@ -83,7 +83,6 @@ var controller = io.of('/controller').on('connection', function(socket) {
     currentControllerSocket = this;
   });
   bounce(socket, 'mapViewUpdate', 'controller');
-  bounce(socket, 'mapZoomTo', 'controller');
   bounce(socket, 'playTour', 'controller');
   bounce(socket, 'addKeyframe', 'controller');
   bounce(socket, 'returnAndAddKeyframe', 'controller');

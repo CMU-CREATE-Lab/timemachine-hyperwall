@@ -93,7 +93,7 @@ public class ControllerActivity extends FragmentActivity {
     private double lastLng = 0;
     private double lastZoom = 0;
     double roundTo = 1000000;
-    int animateCameraDuration = 5000;
+    int animateCameraDuration = 7000;
 
     // Controller variables
     private SharedPreferences prefs = null;
@@ -662,13 +662,11 @@ public class ControllerActivity extends FragmentActivity {
         						double currentLat = Math.round(position.target.latitude * roundTo) / roundTo;
         						double currentLng = Math.round(position.target.longitude * roundTo) / roundTo;
         						float currentZoom = Math.round(position.zoom * (float)roundTo) / (float)roundTo;
-        						if(currentLat != lastLat || currentLng != lastLng || currentZoom != lastZoom) {
-        							socket.emit("mapViewUpdate", Double.toString(currentLat) +" "+ Double.toString(currentLng) +" "+ Double.toString(currentZoom - timeMachineAndGoogleMapZoomOffset));
-        						}
+        						if(currentLat != lastLat || currentLng != lastLng || currentZoom != lastZoom)
+        							socket.emit("mapViewUpdate", Double.toString(position.target.latitude) +" "+ Double.toString(position.target.longitude) +" "+ Double.toString(position.zoom - timeMachineAndGoogleMapZoomOffset));
         						// Limit the max zoom
-        						if(position.zoom > maxZoom) {
+        						if(position.zoom > maxZoom)
         							mMap.moveCamera(CameraUpdateFactory.zoomTo(maxZoom));
-        						}
         						lastLat = currentLat;
         						lastLng = currentLng;
         						lastZoom = currentZoom;
@@ -733,13 +731,14 @@ public class ControllerActivity extends FragmentActivity {
 			public void run () {
 		    	// Set camera
 				String location[] = locationDataFromControllerHTML.split(",");
-				double lat = Double.parseDouble(location[0]);
-				double lng = Double.parseDouble(location[1]);
-				float zoom = Float.parseFloat(location[2]) + timeMachineAndGoogleMapZoomOffset;
-				lastLat = Math.round(lat * roundTo) / roundTo;
-				lastLng = Math.round(lng * roundTo) / roundTo;
-				lastZoom = Math.round(zoom * (float)roundTo) / (float)roundTo;
-				mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat,lng), zoom), animateCameraDuration, null);
+				double lat = Math.round(Double.parseDouble(location[0]) * roundTo) / roundTo;
+				double lng = Math.round(Double.parseDouble(location[1]) * roundTo) / roundTo;
+				float zoom = Math.round(Float.parseFloat(location[2]) * (float)roundTo) / (float)roundTo + timeMachineAndGoogleMapZoomOffset;
+				if(lat != lastLat || lng != lastLng || zoom != lastZoom)
+					mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat,lng), zoom), animateCameraDuration, null);
+				lastLat = lat;
+				lastLng = lng;
+				lastZoom = zoom;
 			}
 		});
     }

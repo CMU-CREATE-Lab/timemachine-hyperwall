@@ -1,9 +1,5 @@
 // Testing the controller
 if (fields.master) {
-  var mapLatLng = {
-    "lat": 99999,
-    "lng": 99999
-  };
   var controlReciever = io.connect('/controller');
   var getKeyframeFromCurrentHyperwallView = function(frameTitle) {
     var snaplapse = timelapse.getSnaplapse();
@@ -82,28 +78,13 @@ if (fields.master) {
     if (snaplapse.isPlaying())
       snaplapse.stop();
     var formattedData = data.split(" ");
-    mapLatLng.lat = parseFloat(formattedData[0]);
-    mapLatLng.lng = parseFloat(formattedData[1]);
+    var mapLatLng = {
+      "lat": parseFloat(formattedData[0]),
+      "lng": parseFloat(formattedData[1])
+    };
     var movePoint = timelapse.getProjection().latlngToPoint(mapLatLng);
     movePoint.scale = timelapse.zoomToScale(parseFloat(formattedData[2]));
     timelapse.setTargetView(movePoint);
-  });
-
-  controlReciever.on('sync mapZoomTo', function(data) {
-    var snaplapse = timelapse.getSnaplapse();
-    if (snaplapse.isPlaying())
-      snaplapse.stop();
-    var viewArray = data.split(",");
-    if (viewArray.length < 3)
-      return;
-    var newView = {
-      center: {
-        "lat": viewArray[0],
-        "lng": viewArray[1]
-      },
-      "zoom": viewArray[2]
-    };
-    timelapse.setNewView(newView, false, false);
   });
 
   controlReciever.on('sync handlePlayPauseServer', function(data) {
