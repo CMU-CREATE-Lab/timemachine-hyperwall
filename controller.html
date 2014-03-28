@@ -22,7 +22,7 @@
       .editor {
         float: left;
         background-color: transparent;
-        width: 235px;
+        width: 154px;
         height: 133px;
         border: 0px;
         display: none;
@@ -31,19 +31,11 @@
         position: absolute;
         left: 1px;
       }
-      .delete {
-        position: absolute;
-        left: 79px;
-      }
-      .update {
-        position: absolute;
-        left: 157px;
-      }
       .ui-button {
         top: 2px;
         line-height: 80px;
         height: 80px;
-        width: 75px;
+        width: 150px;
         border-radius: 3px !important;
         color: #656565;
         background: white;
@@ -81,7 +73,7 @@
         top: 103px;
         left: 1px;
         height: 20px;
-        width: 227px;
+        width: 146px;
         font-size: 14px;
         outline: 0;
         border-radius: 3px;
@@ -463,12 +455,6 @@
         $(".add").button().click(function(event) {
           controller.emit("addKeyframe", $editTitle.val());
         });
-        $(".delete").button().click(function() {
-          deleteKeyframe();
-        });
-        $(".update").button().click(function() {
-          controller.emit("updateKeyframe", $editTitle.val());
-        });
         $editTitle.keyup(function(event) {
           if (event.which == 13) {
             $editTitle.blur();
@@ -647,8 +633,6 @@
   <body>
     <div class="editor">
       <button type="button" class="add">Add</button>
-      <button type="button" class="delete">Del</button>
-      <button type="button" class="update">Update</button>
       <div class="editTitle_txt">
         Thumbnail Title:
       </div>
