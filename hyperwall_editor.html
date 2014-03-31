@@ -42,6 +42,7 @@
         position: absolute;
         top: 835px;
         left: 10px;
+        width: 1068px;
         font-size: 16px;
       }
       #upload {
@@ -62,6 +63,13 @@
       #upload .ui-icon {
         margin-left: 5px;
         background-image: url(timemachine-viewer/images/ui-icons_custom_256x240.png);
+      }
+      #uploadComplete {
+        position: absolute;
+        left: 560px;
+        top: 11px;
+        color: #007400;
+        display: none;
       }
     </style>
 
@@ -148,9 +156,14 @@
           },
           success: function(data) {
             console.log("Location server data updated:", data);
+            $("#uploadComplete").fadeIn(400);
+            setTimeout(function() {
+              $("#uploadComplete").fadeOut(400);
+            }, 5000);
           },
           error: function() {
             console.log("Location server data updating failed.");
+            alert("Location server updating failed. Unable to save the location slider.");
           }
         });
       }
@@ -183,6 +196,7 @@
     <div id="composer1"></div>
     <div id="uploadContainer">
       <button id="upload" type="button">Upload the location slider to the server (requires internet connection)</button>
+      <span id="uploadComplete">Location slider was successfully uploaded.</span>
     </div>
   </body>
 </html>
