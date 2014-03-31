@@ -19,7 +19,7 @@ Download node.js and install it from http://nodejs.org/download/.
   ```
   OR [download a zip from GitHub](https://github.com/CMU-CREATE-Lab/timemachine-hyperwall/archive/master.zip)
 
-- **In a terminal, go to the lg-earthengine code folder on the master machine and start the server by typing:**
+- **In a terminal, go to the timemachine-hyperwall code folder on the master machine and start the server by typing:**
   
   ```
   node server.js
