@@ -1,0 +1,146 @@
+@charset "UTF-8";
+
+.scaleBarContainer {
+  border: 0px solid #000000;
+  background-color: rgba(0,0,0,0);
+  position: absolute;
+  width: 100px;
+  height: 50px;
+  color: #ffffff;
+  z-index: 10;
+}
+
+.scaleBarTop_txt {
+  position: absolute;
+  left: 22px;
+  top: 8px;
+  font-size: 9pt;
+  text-shadow: -1px 0 #656565, 0 1px #656565, 1px 0 #656565, 0 -1px #656565;
+}
+
+.scaleBarBot_txt {
+  position: absolute;
+  left: 22px;
+  top: 27px;
+  font-size: 9pt;
+  text-shadow: -1px 0 #656565, 0 1px #656565, 1px 0 #656565, 0 -1px #656565;
+}
+
+.scaleBar_canvas {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+
+.ratioBarTop {
+  position: absolute;
+  width: 100%;
+  height: 0px;
+  background-color: #000000;
+  opacity: 1;
+  top: 0px;
+  left: 0px;
+  z-index: 8;
+  display: none;
+}
+
+.ratioBarBot {
+  position: absolute;
+  width: 100%;
+  height: 0px;
+  background-color: #000000;
+  opacity: 1;
+  bottom: 0px;
+  left: 0px;
+  z-index: 8;
+  display: none;
+}
+
+.ratioBarLeft {
+  position: absolute;
+  width: 0px;
+  height: 100%;
+  background-color: #000000;
+  opacity: 1;
+  top: 0px;
+  left: 0px;
+  z-index: 8;
+  display: none;
+}
+
+.ratioBarRight {
+  position: absolute;
+  width: 0px;
+  height: 100%;
+  background-color: #000000;
+  opacity: 1;
+  top: 0px;
+  right: 0px;
+  z-index: 8;
+  display: none;
+}
+
+.videoQualityContainer {
+  position: absolute;
+  width: 375px;
+  height: 26px;
+  z-index: 10;
+  border: 1px solid #656565;
+  top: 22px;
+  left: 95px;
+  box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+  background-color: white;
+  border-radius: 2px;
+}
+
+.videoQualitySelector {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  color: black;
+  width: 115px;
+  height: 18px;
+  left: 100px;
+  top: 4px;
+}
+
+.metersPerPixel_text {
+  position: absolute;
+  left: 224px;
+  top: 4px;
+  font-size: 12px;
+  width: 55px;
+  height: 12px;
+  font-family: Arial, Helvetica, sans-serif;
+  vertical-align: middle;
+}
+
+.metersPerPixel_text_static {
+  vertical-align: middle;
+  position: absolute;
+  font-size: 12px;
+  top: 6px;
+  left: 290px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  margin-right: 0px;
+  margin-left: 0px;
+  font-family: Arial, Helvetica, sans-serif;
+  color: black;
+}
+
+.videoQuality_text_static {
+  vertical-align: middle;
+  position: absolute;
+  font-size: 12px;
+  top: 6px;
+  left: 13px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  margin-right: 0px;
+  margin-left: 0px;
+  font-family: Arial, Helvetica, sans-serif;
+  color: black;
+}

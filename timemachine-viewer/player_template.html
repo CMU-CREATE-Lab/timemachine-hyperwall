@@ -1,0 +1,69 @@
+<div class="sideToolBar">
+  <div class="pan" title="Click to pan"></div>
+  <div class="zoom"></div>
+  <div class="tools"></div>
+</div>
+
+<div class="instructions">
+  <span class="zoomhelp">
+    <p>
+      Zoom in and out to explore in greater detail. Click or use the mouse scroll wheel.
+    </p></span>
+  <span class="zoomallhelp">
+    <p>
+      Click to view the whole scene.
+    </p></span>
+  <span class="speedhelp">
+    <p>
+      Click to change playback speed and direction.
+    </p></span>
+  <span class="movehelp">
+    <p>
+      Click and drag to explore.
+    </p></span>
+</div>
+
+<div class="spinnerOverlay"></div>
+
+<div id="{REPLACE}" class="tiledContentHolder"></div>
+
+<div class="controls">
+  <div class="timelineSliderFiller">
+    <div id="Tslider1" class="timelineSlider"></div>
+  </div>
+  <div title="Play" class="playbackButton"></div>
+  <div class="videoTime" title="Video time">
+    <span class="currentTime">00:00.00</span>/<span class="totalTime">00:00.00</span>
+  </div>
+  <div class="captureTime" title="Capture time">
+    <div class="currentCaptureTime"></div>
+  </div>
+  <a href="http://www.cmucreatelab.org/" target="_blank"><div class="createLabLogo"></div></a>
+  <input type="checkbox" class="helpPlayerCheckbox"/>
+  <label class="helpPlayerLabel" title="Show instructions">Help</label>
+  <button class="share" title="Share current view">Share</button>
+  <button class="playbackSpeed" title="Change playback speed"></button>
+  <ul class="playbackSpeedOptions"></ul>
+  <input type="checkbox" class="viewerModeCheckbox"/>
+  <label class="viewerModeBtn" title="Show editor controls">Editor</label>
+  <div class="carousel layerSlider" style="display: none;">
+    <a href="javascript:void(0);" class="prev"></a>
+    <div class="jCarouselLite">
+      <ul class="layerChoices"></ul>
+    </div>
+    <a href="javascript:void(0);" class="next"></a>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="fullScreenBtnContainer"></div>
+  <div class="editorModeToolbar"></div>
+  <div class="annotatorModeToolbar"></div>
+  <button class="toggleMode" title="Toggle between tour and presentation mode">Change Mode</button>
+  <ul class="editorModeOptions"></ul>
+  <div class="mask" style="width:100%; height:14%; position: absolute; top: 0; right: 0;"></div>
+</div>
+
+<div class="shareView" title="Share Current View">
+  <textarea class="shareurl"></textarea>
+</div>
