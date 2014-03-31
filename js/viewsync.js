@@ -23,6 +23,7 @@ viewsync.on('connect', function() {
 viewsync.on('connect_failed', function() {
   console.log('viewsync connection failed!');
 });
+
 viewsync.on('disconnect', function() {
   console.log('viewsync disconnected');
 });
@@ -32,133 +33,90 @@ function viewsync_init() {
     // events for master
     console.log('master of the universe');
     // wait for the timelapse to be ready, there must be a better way!
-    setTimeout(function() {
+    var metadata = timelapse.getMetadata();
+    masterView = timelapse.getView();
+    timelapse.addViewChangeListener(function() {
+      // correct scale extents before checking x/y
+      var view = timelapse.getView();
+      masterView = view;
+      var bbox = timelapse.getBoundingBoxForCurrentView();
+      var xmax = timelapse.getPanoWidth();
+      var xmin = 0;
+      var ymax = timelapse.getPanoHeight();
+      var ymin = 0;
+      var xyExtents = false;
 
-      //console.log( 'video length: ' + get_video_length() + ' seconds' );
+      if (view.x < xmin) {
+        view.x = xmin;
+        xyExtents = true;
+      } else if (view.x > xmax) {
+        view.x = xmax;
+        xyExtents = true;
+      }
+      if (view.y < ymin) {
+        view.y = ymin;
+        xyExtents = true;
+      } else if (view.y > ymax) {
+        view.y = ymax;
+        xyExtents = true;
+      }
 
-      var metadata = timelapse.getMetadata();
-      masterView = timelapse.getView();
-      //console.log( 'dimensions: ' + metadata.width + ' x ' + metadata.height );
+      if (xyExtents) {
+        timelapse.warpTo(view);
+        bbox = timelapse.getBoundingBoxForCurrentView();
+      }
 
-      timelapse.addViewChangeListener(function() {
+      if (fields.showMap || fields.showControls)
+        timelapse.updateTagInfo_locationData();
 
-        // correct scale extents before checking x/y
-        var view = timelapse.getView();
-        masterView = view;
-        /*if ( view.scale < MIN_SCALE ) {
-         view.scale = MIN_SCALE;
-         timelapse.setNewView( view, true );
-         view = timelapse.getView();
-         console.log( 'correcting scale extents' );
-         }*/
-        var bbox = timelapse.getBoundingBoxForCurrentView();
-        //var bbWidth = bbox.xmax - bbox.xmin;
-        //var bbHeight = bbox.ymax - bbox.ymin;
-
-        //var xmax = metadata.width - bbWidth * screensRight;
-        //var xmin = bbWidth * screensLeft;
-        //var xmax = timelapse.getPanoWidth()*(1-(parseInt(screensRight)/(1+parseInt(screensRight)+parseInt(screensLeft))));
-        //var xmin = timelapse.getPanoWidth()*(parseInt(screensLeft)/(1+parseInt(screensRight)+parseInt(screensLeft)));
-
-        var xmax = timelapse.getPanoWidth();
-        var xmin = 0;
-
-        //var ymax = metadata.height - bbHeight * screensDown;
-        //var ymin = bbHeight * screensUp;
-        //var ymax = timelapse.getPanoHeight()*(1-(screensDown/(1+screensUp+screensDown)));
-        //var ymin = timelapse.getPanoHeight()*(screensUp/(1+screensUp+screensDown));
-        var ymax = timelapse.getPanoHeight();
-        var ymin = 0;
-
-        var xyExtents = false;
-
-        if (view.x < xmin) {
-          view.x = xmin;
-          xyExtents = true;
-        } else if (view.x > xmax) {
-          view.x = xmax;
-          xyExtents = true;
-        }
-        if (view.y < ymin) {
-          view.y = ymin;
-          xyExtents = true;
-        } else if (view.y > ymax) {
-          view.y = ymax;
-          xyExtents = true;
-        }
-
-        //console.log(xyExtents);
-        if (xyExtents) {
-          //console.log( 'adjusted view:' );
-          //console.log( view );
-          timelapse.setNewView(view, true);
-          bbox = timelapse.getBoundingBoxForCurrentView();
-        }
-
-        //console.log( bbox );
-        if (fields.showMap || fields.showControls) {
-          timelapse.updateTagInfo_locationData();
-        }
-
-        viewsync.emit('view', {
-          "bbox": bbox,
-          "view": view
-        });
+      viewsync.emit('view', {
+        "bbox": bbox,
+        "view": view
       });
-      timelapse.addTimeChangeListener(function() {
-        viewsync_send_time(false);
-      });
-      //setInterval(function(){
-      //  viewsync_send_time( false );
-      //}, 1000);
+    });
 
-      timelapse.addVideoPlayListener(function() {
-        console.log('master play');
-        viewsync.emit('play', {
-          play: true
-        });
-        viewsync_send_time(true);
+    timelapse.addTimeChangeListener(function() {
+      viewsync_send_time(false);
+    });
+
+    timelapse.addVideoPlayListener(function() {
+      console.log('master play');
+      viewsync.emit('play', {
+        play: true
       });
-      timelapse.addVideoPauseListener(function() {
-        console.log('master pause');
-        viewsync.emit('play', {
-          play: false
-        });
-        viewsync_send_time(true);
+      viewsync_send_time(true);
+    });
+
+    timelapse.addVideoPauseListener(function() {
+      console.log('master pause');
+      viewsync.emit('play', {
+        play: false
       });
-    }, 1000);
+      viewsync_send_time(true);
+    });
   } else {
     // events for slaves
     viewsync.on('sync view', function(data) {
-      //console.log( 'sync view: x: ' + data.xmin + '-' + data.xmax
-      //             + ' y: ' + data.ymin + '-' + data.ymax
-      //             + ' scale: ' + data.scale
-      //           );
       masterView = data.view;
-      var xoffset = (data.bbox.xmax - data.bbox.xmin ) * yawOffset;
-      var yoffset = (data.bbox.ymax - data.bbox.ymin ) * pitchOffset;
-      var adjusted = {
-        bbox: {
-          xmin: data.bbox.xmin + xoffset,
-          xmax: data.bbox.xmax + xoffset,
-          ymin: data.bbox.ymin + yoffset,
-          ymax: data.bbox.ymax + yoffset
-        }
+      var xoffset = (data.bbox.xmax - data.bbox.xmin) * yawOffset;
+      var yoffset = (data.bbox.ymax - data.bbox.ymin) * pitchOffset;
+      var bbox = {
+        xmin: data.bbox.xmin + xoffset,
+        xmax: data.bbox.xmax + xoffset,
+        ymin: data.bbox.ymin + yoffset,
+        ymax: data.bbox.ymax + yoffset
       };
 
-      if (fields.showMap || fields.showControls) {
+      if (fields.showMap || fields.showControls)
         timelapse.updateTagInfo_locationData();
-      }
-      timelapse.setNewView(adjusted, true);
+
+      timelapse.warpToBoundingBox(bbox);
     });
+
     viewsync.on('sync time', function(data) {
-      //console.log( 'sync time: ' + data.time );
-      //var diff = timelapse.getCurrentTime() - data.time;
-      //if( Math.abs( diff ) > MAX_TIME_DIFF || data.absolute ) {
-      //console.log( 'out of sync by ' + diff + '! seeking..' );
       timelapse.seek(data.time);
-      //}
     });
+
     viewsync.on('sync play', function(data) {
       console.log('sync play: ' + data.play);
       if (data.play)
@@ -171,15 +129,8 @@ function viewsync_init() {
 
 function viewsync_send_time(absolute) {
   var t = timelapse.getCurrentTime();
-  //console.log( 'sending time: ' + t );
   viewsync.emit('time', {
     time: t,
     absolute: absolute
   });
 }
-
-// helpers
-function get_video_length() {
-  return timelapse.getNumFrames() / Number(timelapse.getFps()) * timelapse.getPlaybackRate();
-}
-

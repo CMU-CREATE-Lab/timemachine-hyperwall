@@ -93,7 +93,7 @@ public class ControllerActivity extends FragmentActivity {
     private double lastLng = 0;
     private double lastZoom = 0;
     double roundTo = 1000000;
-    int animateCameraDuration = 7000;
+    public static int animateCameraDuration = 7000;
 
     // Controller variables
     private SharedPreferences prefs = null;
@@ -596,7 +596,8 @@ public class ControllerActivity extends FragmentActivity {
 		try {
 			locationSlider.loadUrl("javascript:setDoAutoMode(" + doAutoMode + ")");
 			locationSlider.loadUrl("javascript:setScreenIdleTime(" + Integer.parseInt(screenIdleTime) * 1000 + ")");
-			locationSlider.loadUrl("javascript:setAutoModeDelayTime(" + Integer.parseInt(autoModeDelayTime) * 1000 + ")");
+			int autoModeDelayTime_int = Integer.parseInt(autoModeDelayTime) * 1000 + animateCameraDuration;
+			locationSlider.loadUrl("javascript:setAutoModeDelayTime(" + autoModeDelayTime_int + ")");
 		} catch(Exception e) {
 			e.printStackTrace();
 		}

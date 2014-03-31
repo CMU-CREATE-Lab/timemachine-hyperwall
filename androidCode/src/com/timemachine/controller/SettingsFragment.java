@@ -48,10 +48,10 @@ public class SettingsFragment extends PreferenceFragment implements SharedPrefer
     		}
     	} else if (key.equals(getString(R.string.key_autoModeDelayTime))) {
     		String autoModeDelayTime_str = validateInput(sharedPreferences, getString(R.string.defaultAutoModeDelayTime), key);
-    		int autoModeDelayTime = Integer.parseInt(autoModeDelayTime_str);
+    		int autoModeDelayTime = Integer.parseInt(autoModeDelayTime_str) * 1000 + ControllerActivity.animateCameraDuration;
     		System.out.println(key + ": " + autoModeDelayTime);
     		try {
-    			ControllerActivity.locationSlider.loadUrl("javascript:setAutoModeDelayTime(" + autoModeDelayTime * 1000 + ")");
+    			ControllerActivity.locationSlider.loadUrl("javascript:setAutoModeDelayTime(" + autoModeDelayTime + ")");
     		} catch(Exception e) {
     			e.printStackTrace();
     		}

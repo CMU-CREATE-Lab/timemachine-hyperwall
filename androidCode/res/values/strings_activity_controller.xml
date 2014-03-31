@@ -12,7 +12,7 @@
     <string name="action_disconnect">Disconnect</string>
     <string name="action_toggleEditor">Toggle Editor</string>
     <string name="defaultScreenIdleTime">90</string>
-    <string name="defaultAutoModeDelayTime">25</string>
+    <string name="defaultAutoModeDelayTime">20</string>
     <string name="defaultDoAutoMode">true</string>
     <string name="key_doAutoMode">doAutoMode</string>
     <string name="key_screenIdleTime">screenIdleTime</string>
