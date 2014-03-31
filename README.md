@@ -13,11 +13,11 @@ Download node.js and install it from http://nodejs.org/download/.
 
 <a name="run"></a>
 ## Running the node.js server on the master:
-- **Download the lg-earthengine code from github.**
+- **Download the timemachine-hyperwall code from github.**
   ```
-  git clone https://github.com/pdille/lg-earthengine.git
+  git clone https://github.com/CMU-CREATE-Lab/timemachine-hyperwall.git
   ```
-  OR [download a zip from GitHub](https://github.com/pdille/lg-earthengine/archive/master.zip)
+  OR [download a zip from GitHub](https://github.com/CMU-CREATE-Lab/timemachine-hyperwall/archive/master.zip)
 
 - **In a terminal, go to the lg-earthengine code folder on the master machine and start the server by typing:**
   
