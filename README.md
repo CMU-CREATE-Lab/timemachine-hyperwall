@@ -4,6 +4,7 @@
 2. [Running the node.js server on the master](#run)
 3. [Syncing up other machines](#sync)
 4. [Installing the Android app](#installApp)
+5. [Editing the location slider](#editor)
 
 #### [Tutorial for the tablet controller](https://sites.google.com/a/gigapan.org/timelapse/creating-time-machines/time-machine-controller-for-hyperwall)
 
@@ -62,7 +63,6 @@ Download node.js and install it from http://nodejs.org/download/.
   pitchOffset is for above/below the master. Negative is above and positive is below. yawOffset is for left/right of the master. Negative is to the left and positive is to the right.
 
 <a name="installApp"></a>
-
 ## Installing the Android app
 
 - **Prerequisites**
@@ -80,3 +80,18 @@ However, our app should still work on Android 4.2, with the requirement that you
 - **Set up the node server first** 
 
   The node server on the master machine needs to be running before you start the app. In addition, the Android tablet and the master machine need to be on the same network. Once you start the app, it will ask you the IP address of the master machine, e.g. 192.168.1.2. Once you enter the IP address, the tablet will be connected. For your convenience, the address will be saved for future runs of the app.
+  
+<a name="editor"></a>
+## Editing the location slider
+
+- **Add locations from the tablet editor** 
+
+  Locations can be added direcly from the tablet editor. Here is a [tutorial for the tablet editor](https://sites.google.com/a/gigapan.org/timelapse/creating-time-machines/time-machine-controller-for-hyperwall#TOC-Tablet-Editor-Tutorial).
+
+- **Edit the slider from the desktop editor** 
+
+  For a more feature-rich editor, go to the desktop version at the following address:
+  ```
+  http://192.168.1.2:8080/hyperwall_editor.html
+  ```
+  This assumes the IP address of the master machine is 192.168.1.2. Here is a [tutorial for the desktop editor](https://sites.google.com/a/gigapan.org/timelapse/creating-time-machines/time-machine-controller-for-hyperwall#TOC-Desktop-Editor-Tutorial).
