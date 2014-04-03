@@ -11,6 +11,7 @@ if (fields.master) {
     keyframe.thumbnailURL = snaplapseViewer.generateThumbnailURL(settings["url"], keyframe.bounds, 260, 185, keyframe.time);
     return keyframe;
   };
+  var previousMapLng = 0;
 
   controlReciever.on('connect', function() {
     console.log('controlReciever connected');
@@ -84,7 +85,12 @@ if (fields.master) {
     };
     var movePoint = timelapse.getProjection().latlngToPoint(mapLatLng);
     movePoint.scale = timelapse.zoomToScale(parseFloat(formattedData[2]));
-    timelapse.setTargetView(movePoint);
+    // When we reach the map boundary, we warp instantly to the other side.
+    if (Math.abs(mapLatLng.lng - previousMapLng) > 100)
+      timelapse.warpTo(movePoint);
+    else
+      timelapse.setTargetView(movePoint);
+    previousMapLng = mapLatLng.lng;
   });
 
   controlReciever.on('sync handlePlayPauseServer', function(data) {
