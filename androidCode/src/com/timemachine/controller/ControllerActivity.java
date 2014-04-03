@@ -476,8 +476,15 @@ public class ControllerActivity extends FragmentActivity {
         	}
         	@Override
         	public void onLoadResource(WebView view, String url) {
-        		if(url.contains("thumbnail"))
+        		// onPageFinished does not always seem to fire, so we run the code below
+        		// on the first image that is loaded in controller.html. We know this is
+        		// safe because images are loaded after JavaScript when a HTML page loads.
+        		if(url.contains("thumbnail") && isMasterConnected == false) {
+        			drag.setVisibility(View.VISIBLE);
+        			playPause.setVisibility(View.VISIBLE);
+        			loadPreferences();
         			isMasterConnected = true;
+        		}
         	}
         	@Override
         	public void onPageStarted(WebView view, String url, Bitmap favicon) {
@@ -491,15 +498,6 @@ public class ControllerActivity extends FragmentActivity {
                 };
                 isMasterConnectedTimer.schedule(isMasterConnectedTimerTask, 6000);
         	}
-            @Override
-            public void onPageFinished(WebView view, String url) {
-            	if (url.contains(controllerURL)) {
-            		drag.setVisibility(View.VISIBLE);
-            		playPause.setVisibility(View.VISIBLE);
-            		loadPreferences();
-            	}
-                super.onPageFinished(view, url);
-            }
         });
 		try {
 			locationSlider.loadUrl(controllerURL);
