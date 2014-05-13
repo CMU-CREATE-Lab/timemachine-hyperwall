@@ -82,6 +82,7 @@ if (!org.gigapan) {
   var isChromeOS = navigator.userAgent.match(/CrOS/) != null;
   var mediaType = ".mp4";
   var viewerType = (isSafariUserAgent || isChromeOS) ? "video" : "canvas";
+  var rootAppURL = computeRootAppURL();
 
   //0 == none
   //1 == errors only
@@ -353,7 +354,7 @@ if (!org.gigapan) {
   };
 
   // Select an element in jQuery sortable
-  org.gigapan.Util.selectSortableElements = function($sortableContainer, $elementsToSelect, autoScroll) {
+  org.gigapan.Util.selectSortableElements = function($sortableContainer, $elementsToSelect, autoScroll, scrollStartCallback) {
     if ($sortableContainer.length == 0)
       return;
     // Add unselecting class to all elements in the styleboard canvas except the ones to select
@@ -367,9 +368,34 @@ if (!org.gigapan) {
     // Refresh the selectable to prevent errors
     $sortableContainer.sortable('refresh');
     // Scroll to the position
-    if (autoScroll == true) {
-      var $sortableContainerParent = $sortableContainer.parent();
-      $sortableContainerParent.scrollLeft(Math.round($elementsToSelect.position().left - $sortableContainerParent.width() / 3));
+    if (autoScroll) {
+      var $keyframeContainer = $sortableContainer.parent();
+      var containerOffset = $keyframeContainer.offset();
+      var containerWidth = $keyframeContainer.width();
+      var elementOffset = $elementsToSelect.offset();
+      var elementWidth = $elementsToSelect.width();
+      var distanceBetweenElementAndLeftEdge = elementOffset.left + elementWidth - containerOffset.left;
+      var distanceBetweenElementAndRightEdge = containerWidth - elementOffset.left + containerOffset.left;
+      var scrollLeftPx;
+      var scrollDuration = (autoScroll == "noAnimation") ? 0 : 500;
+      if (distanceBetweenElementAndRightEdge < elementWidth * 1.5)
+        scrollLeftPx = $keyframeContainer.scrollLeft() + (elementWidth * 1.5 - distanceBetweenElementAndRightEdge);
+      else if (distanceBetweenElementAndLeftEdge < elementWidth * 1.5)
+        scrollLeftPx = $keyframeContainer.scrollLeft() - (elementWidth * 1.5 - distanceBetweenElementAndLeftEdge);
+      if (scrollLeftPx) {
+        $keyframeContainer.stop(true, true).animate({
+          scrollLeft: scrollLeftPx
+        }, {
+          duration: scrollDuration,
+          start: function() {
+            if (scrollStartCallback)
+              scrollStartCallback();
+          }
+        });
+      } else {
+        // The reason to hide and show the elements is the workaround for a webkit refresh bug
+        $keyframeContainer.hide().show(0);
+      }
     }
   };
 
@@ -385,8 +411,42 @@ if (!org.gigapan) {
   };
 
   org.gigapan.Util.getRootAppURL = function() {
-    var tmpURL = $('script[src*="util.js"]').attr("src");
-    return tmpURL.substr(0, tmpURL.indexOf("js/"));
+    return rootAppURL;
+  };
+
+  org.gigapan.Util.addGoogleAnalyticEvent = function(category, action, label) {
+    var settings, isGoogleAnalyticEventTrackingEnabled;
+    if ( typeof timelapse != "undefined") {
+      settings = timelapse.getSettings();
+      if ( typeof settings != "undefined")
+        isGoogleAnalyticEventTrackingEnabled = ( typeof (settings["isGoogleAnalyticEventTrackingEnabled"]) == "undefined") ? false : settings["isGoogleAnalyticEventTrackingEnabled"];
+    }
+    if ( typeof (ga) != "undefined" && isGoogleAnalyticEventTrackingEnabled)
+      ga('send', 'event', category, action, label);
+  };
+
+  function computeRootAppURL() {
+    var jsFiles = $("script");
+    var pathOfCurrentScript = $(jsFiles[jsFiles.length - 1]).attr("src");
+    var isAbsoluteURL = pathOfCurrentScript.indexOf('://');
+    if (isAbsoluteURL > 0) {
+      // Include is an absolute URL "http(s)://..."
+      var absoluteURLIndex = pathOfCurrentScript.indexOf('/', pathOfCurrentScript.indexOf('://') + 3);
+      absoluteURLName = pathOfCurrentScript.substring(0, absoluteURLIndex) + '/';
+      var absoluteURLFolderIndex = pathOfCurrentScript.indexOf('/', pathOfCurrentScript.indexOf(absoluteURLName) + absoluteURLName.length);
+      if (absoluteURLFolderIndex < 0) {
+        return absoluteURLName;
+      } else {
+        return pathOfCurrentScript.substring(0, absoluteURLFolderIndex) + "/";
+      }
+    } else {
+      // Include is a relative URL
+      var relativeURL = pathOfCurrentScript.substr(0, pathOfCurrentScript.substring(1).indexOf('/') + 1);
+      if (relativeURL === "" || (relativeURL.substr(0, 1) !== "/" && relativeURL.substr(0, 1) !== "." && relativeURL.substr(0, 2) !== ".."))
+        return "";
+      else
+        return relativeURL + "/";
+    }
   }
 
 })();

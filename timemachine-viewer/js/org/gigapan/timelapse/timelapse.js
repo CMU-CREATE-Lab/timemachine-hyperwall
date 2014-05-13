@@ -113,7 +113,6 @@ if (!window['$']) {
 //
 (function() {
   var UTIL = org.gigapan.Util;
-
   org.gigapan.timelapse.Timelapse = function(viewerDivId, settings) {
     availableTimelapses.push(this);
 
@@ -126,8 +125,11 @@ if (!window['$']) {
     var datasetLayer = settings["layer"] && UTIL.isNumber(settings["layer"]) ? settings["layer"] : 0;
     var initialTime = settings["initialTime"] && UTIL.isNumber(settings["initialTime"]) ? settings["initialTime"] : 0;
     var initialView = settings["initialView"] || null;
+    // deprecated
     var doChromeSeekableHack = ( typeof (settings["doChromeSeekableHack"]) == "undefined") ? true : settings["doChromeSeekableHack"];
+    // deprecated
     var doChromeBufferedHack = ( typeof (settings["doChromeBufferedHack"]) == "undefined") ? true : settings["doChromeBufferedHack"];
+    var doChromeCacheBreaker = ( typeof (settings["doChromeCacheBreaker"]) == "undefined") ? true : settings["doChromeCacheBreaker"];
     var loopDwell = ( typeof (settings["loopDwell"]) == "undefined" || typeof (settings["loopDwell"]["startDwell"]) == "undefined" || typeof (settings["loopDwell"]["endDwell"]) == "undefined") ? null : settings["loopDwell"];
     var startDwell = (!loopDwell || typeof (settings["loopDwell"]["startDwell"]) == "undefined") ? 0 : settings["loopDwell"]["startDwell"];
     var endDwell = (!loopDwell || typeof (settings["loopDwell"]["endDwell"]) == "undefined") ? 0 : settings["loopDwell"]["endDwell"];
@@ -141,13 +143,15 @@ if (!window['$']) {
     var skippedFramesAtStart = ( typeof (settings["skippedFramesAtStart"]) == "undefined" || settings["skippedFramesAtStart"] < 0) ? 0 : settings["skippedFramesAtStart"];
     var mediaType = ( typeof (settings["mediaType"]) == "undefined") ? null : settings["mediaType"];
     var enableMetadataCacheBreaker = settings["enableMetadataCacheBreaker"] || false;
+    var datasetType = settings["datasetType"];
+    var useCustomUI = (settings["datasetType"] == "landsat" || settings["datasetType"] == "modis");
     var visualizerGeometry = {
-      width: undefined,
-      height: undefined
+      width: 250,
+      height: 142
     };
-    var minViewportHeight = 400;
-    var minViewportWidth = 700;
-    var datasetType;
+    var minViewportHeight = 370;
+    var minViewportWidth = 540;
+    var defaultLoopDwellTime = 0.5;
 
     // If the user requested a tour editor AND has a div in the DOM for the editor,
     // then do all related edtior stuff (pull thumbnails for keyframes, etc.)
@@ -155,12 +159,13 @@ if (!window['$']) {
     // (No thumbnails for keyframes pulled and loading a tour will display a load
     // button with the tour name on the center of the viewport.)
     var editorEnabled = settings["composerDiv"] && $("#" + settings["composerDiv"]).length;
+    var presentationSliderEnabled = settings["presentationSliderDiv"] && $("#" + settings["presentationSliderDiv"]).length;
 
     // Objects
     var videoset;
     var snaplapse;
-    var snaplapseViewer;
-    var presentationSlider;
+    var snaplapseForSharedTour;
+    var snaplapseForPresentationSlider;
     var scaleBar;
     var smallGoogleMap;
     var annotator;
@@ -169,12 +174,7 @@ if (!window['$']) {
     var visualizer;
 
     // DOM elements
-    var Tslider1Full;
-    var Tslider1Color;
     var panoVideo;
-    var $subtitle_DOM;
-    var subtitle_DOM;
-    var subtitle_DOM_child;
     var dataPanesId;
 
     // Canvas version
@@ -198,6 +198,10 @@ if (!window['$']) {
     var enableSmallGoogleMap = true;
     var enablePanoVideo = true;
     var isChrome = UTIL.isChrome();
+    var loadTimelapseWithPreviousViewAndTime = false;
+    var didHashChangeFirstTimeOnLoad = false;
+    var didFirstTimeOnLoad = false;
+    var doNotResetViewerSize = false;
 
     // Viewer
     var viewerType;
@@ -232,7 +236,6 @@ if (!window['$']) {
     var tmJSON;
     var datasetJSON = null;
     var videoDivId;
-    var playerSize;
     var datasetIndex;
     var datasetPath;
     var tileRootPath;
@@ -253,6 +256,7 @@ if (!window['$']) {
     var leader;
     var parabolicMotionController;
     var parabolicMotionObj = org.gigapan.timelapse.parabolicMotion;
+    var previousCaptureTime;
 
     // animateRate in milliseconds, 40 means 25 FPS
     var animateRate = isHyperwall ? 10 : 40;
@@ -333,6 +337,22 @@ if (!window['$']) {
     //
     // Public methods
     //
+    this.getDatasetType = function() {
+      return datasetType;
+    };
+
+    this.useCustomUI = function() {
+      return useCustomUI;
+    };
+
+    this.getStartDwell = function() {
+      return startDwell;
+    };
+
+    this.getEndDwell = function() {
+      return endDwell;
+    };
+
     this.getPlayOnLoad = function() {
       return playOnLoad;
     };
@@ -365,8 +385,8 @@ if (!window['$']) {
       return editorEnabled;
     };
 
-    this.getDatasetType = function() {
-      return datasetType;
+    this.getPresentationSliderEnabled = function() {
+      return presentationSliderEnabled;
     };
 
     this.getDefaultUI = function() {
@@ -383,14 +403,6 @@ if (!window['$']) {
 
     this.getMinViewportWidth = function() {
       return minViewportWidth;
-    };
-
-    this.disableEditorToolbarButtons = function() {
-      defaultUI.disableEditorToolbarButtons();
-    };
-
-    this.enableEditorToolbarButtons = function() {
-      defaultUI.enableEditorToolbarButtons();
     };
 
     // Used by defaultUI to switch between modes (player, editor, etc)
@@ -417,6 +429,10 @@ if (!window['$']) {
 
     this.doChromeBufferedHack = function() {
       return doChromeBufferedHack;
+    };
+
+    this.doChromeCacheBreaker = function() {
+      return doChromeCacheBreaker;
     };
 
     this.getSmallGoogleMap = function() {
@@ -463,8 +479,12 @@ if (!window['$']) {
       return snaplapse;
     };
 
-    this.getPresentationSlider = function() {
-      return presentationSlider;
+    this.getSnaplapseForSharedTour = function() {
+      return snaplapseForSharedTour;
+    };
+
+    this.getSnaplapseForPresentationSlider = function() {
+      return snaplapseForPresentationSlider;
     };
 
     this.getCanvas = function() {
@@ -498,11 +518,7 @@ if (!window['$']) {
     };
 
     this.handleEditorModeToolbarChange = function() {
-      defaultUI.handleEditorModeToolbarChange();
-    };
-
-    this.handleAnnotatorModeToolbarChange = function() {
-      defaultUI.handleAnnotatorModeToolbarChange();
+      snaplapse.getSnaplapseViewer().handleEditorModeToolbarChange();
     };
 
     this.isFullScreen = function() {
@@ -542,6 +558,12 @@ if (!window['$']) {
         _pause();
       }
     };
+
+    var stopParabolicMotion = function() {
+      if (parabolicMotionController)
+        parabolicMotionController._disableAnimation();
+    };
+    this.stopParabolicMotion = stopParabolicMotion;
 
     var convertViewportToTimeMachine = function(point) {
       var boundingBox = thisObj.getBoundingBoxForCurrentView();
@@ -606,7 +628,6 @@ if (!window['$']) {
       // If we are focused on a text field or the slider handlers, do not run any player specific controls.
       if ($("#" + viewerDivId + " .timelineSlider .ui-slider-handle:focus").length || $("#" + viewerDivId + " .zoomSlider .ui-slider-handle:focus").length || activeElement == "[object HTMLInputElement]" || activeElement == "[object HTMLTextAreaElement]")
         return;
-
       var moveFn;
       switch (event.which) {
         // Left arrow
@@ -671,6 +692,7 @@ if (!window['$']) {
           break;
         // Minus
         case 173:
+        case 109:
         case 189:
           moveFn = function() {
             if (event.shiftKey) {
@@ -683,6 +705,7 @@ if (!window['$']) {
           break;
         // Plus
         case 61:
+        case 107:
         case 187:
           moveFn = function() {
             if (event.shiftKey) {
@@ -722,9 +745,9 @@ if (!window['$']) {
       //UTIL.log('mousescroll delta  ' + delta);
       if (event.shiftKey) {
         if (delta > 0) {
-          zoomAbout(1 / 0.999, event.pageX, event.pageY);
+          zoomAbout(1 / 0.99, event.pageX, event.pageY);
         } else if (delta < 0) {
-          zoomAbout(0.999, event.pageX, event.pageY);
+          zoomAbout(0.99, event.pageX, event.pageY);
         }
       } else {
         if (delta > 0) {
@@ -964,6 +987,8 @@ if (!window['$']) {
       var shareStr = '#v=' + _getViewStr() + '&t=' + thisObj.getCurrentTime().toFixed(2);
       if (datasetType == "modis" && customUI.getLocker() != "none")
         shareStr += '&l=' + customUI.getLocker();
+      if (datasetType == "breathecam")
+        shareStr += '&d=' + settings["url"].match(/\d\d\d\d-\d\d-\d\d/);
       return shareStr;
     };
     this.getShareView = getShareView;
@@ -971,6 +996,42 @@ if (!window['$']) {
     // Extract a safe view object from an unsafe view string.
     var unsafeViewToView = function(viewParam) {
       var view = null;
+
+      if (!viewParam)
+        return view;
+
+      // If the view is not a string (i.e an object) then we need to break it up into one
+      // so that we can sanitize it below.
+      if (viewParam.center || viewParam.bbox) {
+        var tmpViewParam = [];
+        if (viewParam.center) {
+          var isLatLng = false;
+          var centerView = viewParam.center;
+          for (var key in centerView) {
+            tmpViewParam.push(centerView[key]);
+            if (key == "lat")
+              isLatLng = true;
+          }
+          tmpViewParam.push(viewParam.zoom);
+          isLatLng ? tmpViewParam.push("latLng") : tmpViewParam.push("pts");
+          viewParam = tmpViewParam;
+        } else if (viewParam.bbox) {
+          var isLatLng = false;
+          var bboxView = viewParam.bbox;
+          for (var key in bboxView) {
+            if (key == "ne" || key == "sw") {
+              isLatLng = true;
+              for (var innerKey in bboxView[key])
+              tmpViewParam.push(bboxView[key][innerKey]);
+            } else {
+              tmpViewParam.push(bboxView[key]);
+            }
+          }
+          isLatLng ? tmpViewParam.push("latLng") : tmpViewParam.push("pts");
+          viewParam = tmpViewParam;
+        }
+      }
+
       if (viewParam.indexOf("latLng") != -1) {
         if (viewParam.length == 4)
           view = {
@@ -1078,6 +1139,7 @@ if (!window['$']) {
       var timePadding = isFirefox ? 0 : 0.3;
       var seekTime = (frameIdx + timePadding) / _getFps();
       _seek(seekTime);
+      seek_panoVideo(seekTime);
     };
     this.seekToFrame = seekToFrame;
 
@@ -1128,7 +1190,7 @@ if (!window['$']) {
       thisObj.setPlaybackRate(originalPlaybackRate);
     };
 
-    this.setPlaybackRate = function(rate, preserveOriginalRate, fromUI) {
+    this.setPlaybackRate = function(rate, preserveOriginalRate, skipUpdateUI) {
       if (!preserveOriginalRate)
         originalPlaybackRate = rate;
       videoset.setPlaybackRate(rate);
@@ -1140,8 +1202,7 @@ if (!window['$']) {
       }
 
       for (var i = 0; i < playbackRateChangeListeners.length; i++)
-        playbackRateChangeListeners[i](rate, fromUI);
-
+        playbackRateChangeListeners[i](rate, skipUpdateUI);
     };
 
     this.toggleMainControls = function() {
@@ -1373,30 +1434,34 @@ if (!window['$']) {
 
     // Handle any hash variables related to time machines
     var handleHashChange = function() {
-      var unsafeHashVars = UTIL.getUnsafeHashVars();
-      var newView = getViewFromHash(unsafeHashVars);
-      var newTime = getTimeFromHash(unsafeHashVars);
-      var tourJSON = getTourFromHash(unsafeHashVars);
-      var presentationJSON = getPresentationFromHash(unsafeHashVars);
-      var modisLock = getModisLockFromHash(unsafeHashVars);
+      var unsafeHashObj = UTIL.getUnsafeHashVars();
+      var newView = getViewFromHash(unsafeHashObj);
+      var newTime = getTimeFromHash(unsafeHashObj);
+      var tourJSON = getTourFromHash(unsafeHashObj);
+      var presentationJSON = getPresentationFromHash(unsafeHashObj);
+      var modisLock = getModisLockFromHash(unsafeHashObj);
       if (newView || newTime || tourJSON || presentationJSON || modisLock) {
         if (newView)
           _setNewView(newView, true);
         if (newTime)
           _seek(newTime);
-        if (snaplapse && tourJSON) {
-          var snaplapseViewer = snaplapse.getSnaplapseViewer();
-          if (snaplapseViewer)
-            snaplapseViewer.loadNewSnaplapse(tourJSON);
+        if (snaplapseForSharedTour && tourJSON) {
+          var snaplapseViewerForSharedTour = snaplapseForSharedTour.getSnaplapseViewer();
+          if (snaplapseViewerForSharedTour) {
+            snaplapseViewerForSharedTour.loadNewSnaplapse(tourJSON);
+            UTIL.addGoogleAnalyticEvent('window', 'onHashChange', 'url-load-tour');
+          }
         }
-        if (presentationSlider && presentationJSON) {
-          var presentationSliderViewer = presentationSlider.getSnaplapseViewer();
+        if (snaplapseForPresentationSlider && presentationJSON) {
+          var snaplapseViewerForPresentationSlider = snaplapseForPresentationSlider.getSnaplapseViewer();
           if ( typeof snaplapse == "undefined") {
             // Prevent the editor leave page alert from showing if only the presentation mode is enabled from the hash
-            window.onbeforeunload = null;
+            $(window).off("beforeunload", handleLeavePageWithEditor);
           }
-          if (presentationSliderViewer)
-            presentationSliderViewer.loadNewSnaplapse(presentationJSON);
+          if (snaplapseViewerForPresentationSlider) {
+            snaplapseViewerForPresentationSlider.loadNewSnaplapse(presentationJSON);
+            UTIL.addGoogleAnalyticEvent('window', 'onHashChange', 'url-load-presentation');
+          }
         }
         if (datasetType == "modis" && modisLock == "month")
           $("#noLock").click();
@@ -1405,49 +1470,54 @@ if (!window['$']) {
         return false;
     };
 
-    // Gets safe view values from an unsafe hash string.
-    var getViewFromHash = function(unsafeHashVars) {
-      if (unsafeHashVars && unsafeHashVars.v) {
-        var newView = unsafeViewToView(unsafeHashVars.v.split(","));
+    // Gets safe view values (Object) from an unsafe object containing key-value pairs from the URL hash.
+    var getViewFromHash = function(unsafeHashObj) {
+      if (unsafeHashObj && unsafeHashObj.v) {
+        var newView = unsafeViewToView(unsafeHashObj.v.split(","));
         return newView;
       }
       return null;
     };
 
-    // Gets a safe time value from an unsafe hash string.
-    var getTimeFromHash = function(unsafeHashVars) {
-      if (unsafeHashVars && unsafeHashVars.t) {
-        var newTime = parseFloat(unsafeHashVars.t);
+    // Gets a safe time value (Float) from an unsafe object containing key-value pairs from the URL hash.
+    // TODO: what if time is 0?
+    var getTimeFromHash = function(unsafeHashObj) {
+      if (unsafeHashObj && unsafeHashObj.t) {
+        var newTime = parseFloat(unsafeHashObj.t);
         return newTime;
       }
       return null;
     };
 
-    // Gets a safe MODIS month lock value from an unsafe hash string.
-    var getModisLockFromHash = function(unsafeHashVars) {
-      if (unsafeHashVars && unsafeHashVars.l) {
-        var newMonthLock = unsafeHashVars.l;
+    // Gets a safe MODIS month lock value (String) from an unsafe object containing key-value pairs from the URL hash.
+    var getModisLockFromHash = function(unsafeHashObj) {
+      if (unsafeHashObj && unsafeHashObj.l) {
+        var newMonthLock = String(unsafeHashObj.l);
         return newMonthLock;
       }
       return null;
     };
 
-    // Gets safe tour JSON from an unsafe hash string.
-    var getTourFromHash = function(unsafeHashVars) {
-      if (unsafeHashVars && unsafeHashVars.tour) {
+    // Gets safe tour JSON from an unsafe object containing key-value pairs from the URL hash.
+    // The JSON returned is safe because calls to urlStringToJSON go to carefully-designed methods that use strict encoders
+    // (and naming conventions to mark strings not strictly sanitized) to ensure the input is safe.
+    var getTourFromHash = function(unsafeHashObj) {
+      if (unsafeHashObj && unsafeHashObj.tour) {
         if (snaplapse) {
-          var tourJSON = snaplapse.urlStringToJSON(unsafeHashVars.tour);
+          var tourJSON = snaplapse.urlStringToJSON(unsafeHashObj.tour);
           return tourJSON;
         }
       }
       return null;
     };
 
-    // Gets safe presentation JSON from an unsafe hash string.
-    var getPresentationFromHash = function(unsafeHashVars) {
-      if (unsafeHashVars && unsafeHashVars.presentation) {
-        if (presentationSlider) {
-          var presentationJSON = presentationSlider.urlStringToJSON(unsafeHashVars.presentation);
+    // Gets safe presentation JSON from an unsafe object containing key-value pairs from the URL hash.
+    // The JSON returned is safe because calls to urlStringToJSON go to carefully-designed methods that use strict encoders
+    // (and naming conventions to mark strings not strictly sanitized) to ensure the input is safe.
+    var getPresentationFromHash = function(unsafeHashObj) {
+      if (unsafeHashObj && unsafeHashObj.presentation) {
+        if (snaplapseForPresentationSlider) {
+          var presentationJSON = snaplapseForPresentationSlider.urlStringToJSON(unsafeHashObj.presentation);
           return presentationJSON;
         }
       }
@@ -1462,8 +1532,7 @@ if (!window['$']) {
       var saveMouseMove = document.onmousemove;
       var saveMouseUp = document.onmouseup;
       $(videoDiv).removeClass("openHand closedHand").addClass('closedHand');
-      if (parabolicMotionController)
-        parabolicMotionController._disableAnimation();
+      stopParabolicMotion();
       document.onmousemove = function(event) {
         if (mouseIsDown) {
           //if (videoset.isStalled()) return;
@@ -1951,6 +2020,11 @@ if (!window['$']) {
 
       readVideoDivSize();
 
+      if (loadTimelapseWithPreviousViewAndTime && captureTimes.length > 0 && captureTimes[timelapseCurrentCaptureTimeIndex].length >= 11) {
+        var captureTimeStamp = captureTimes[timelapseCurrentCaptureTimeIndex].substring(11);
+        previousCaptureTime = new Date("2000/01/01 " + captureTimeStamp).toTimeString().substr(0, 5);
+      }
+
       // Set capture time
       if (tmJSON["capture-times"]) {
         tmJSON["capture-times"].splice(tmJSON["capture-times"].length - framesToSkipAtEnd, framesToSkipAtEnd);
@@ -1995,12 +2069,6 @@ if (!window['$']) {
     };
     this.getCurrentFrameNumber = getCurrentFrameNumber;
 
-    // Set the snaplapse viewer after the ajax call, called by snaplapse
-    this.setSnaplapseViewer = function(_snaplapseViewer) {
-      snaplapseViewer = _snaplapseViewer;
-      $("#" + viewerDivId + " .addTimetag").button("option", "disabled", false);
-    };
-
     // Initialize the tag info with location data
     var initializeTagInfo_locationData = function() {
       var boundingBox = pixelCenterToPixelBoundingBoxView(homeView).bbox;
@@ -2015,6 +2083,9 @@ if (!window['$']) {
     };
 
     // Update tag information of location data
+    // TODO(yenchiah): This seems to be run several times (~6) when the time machine object is first created.
+    // Another bug is that the position of the pano video on the context map is incorrect.
+    // This seems to happens when the aspect ratio of the viewport and the context map are not the same.
     var updateTagInfo_locationData = function() {
       if (!defaultUI)
         return null;
@@ -2101,6 +2172,43 @@ if (!window['$']) {
       }// End of if (visualizer != undefined || smallGoogleMap != undefined || scaleBar != undefined)
     };
     this.updateTagInfo_locationData = updateTagInfo_locationData;
+
+    var loadSharedDataFromUnsafeURL = function(unsafe_fullURL, playOnLoad) {
+      var unsafe_matchURL = unsafe_fullURL.match(/#(.+)/);
+      if (unsafe_matchURL) {
+        var unsafe_sharedVars = UTIL.unpackVars(unsafe_matchURL[1]);
+        var unsafe_sharedData;
+        var snaplapseForSharedData;
+        // Find if shared data exists in the URL
+        if (unsafe_sharedVars.tour && snaplapseForSharedTour) {
+          unsafe_sharedData = unsafe_sharedVars.tour;
+          snaplapseForSharedData = snaplapseForSharedTour;
+        } else if (unsafe_sharedVars.presentation && snaplapseForPresentationSlider) {
+          unsafe_sharedData = unsafe_sharedVars.presentation;
+          snaplapseForSharedData = snaplapseForPresentationSlider;
+        }
+        // Handle the shared data
+        if (unsafe_sharedData) {
+          var snaplapseViewerForSharedData = snaplapseForSharedData.getSnaplapseViewer();
+          if (snaplapseViewerForSharedData) {
+            var sharedData = snaplapseForSharedData.urlStringToJSON(unsafe_sharedData);
+            if (sharedData) {
+              if (playOnLoad && unsafe_sharedVars.tour) {
+                var onLoad = function() {
+                  snaplapseViewerForSharedData.removeEventListener('snaplapse-loaded', onLoad);
+                  $("#" + viewerDivId + " .tourLoadOverlay").css("visibility", "visible");
+                  //$("#" + viewerDivId + " .tourLoadOverlayPlay").css("visibility", "visible");
+                  snaplapseViewerForSharedData.animateTourOverlayAndPlay(0);
+                };
+                snaplapseViewerForSharedData.addEventListener('snaplapse-loaded', onLoad);
+              }
+              snaplapseViewerForSharedData.loadNewSnaplapse(sharedData, playOnLoad);
+            } // end of if (sharedData)
+          }// end of if (snaplapseViewerForSharedData)
+        }// end of if (unsafe_sharedData)
+      }// end of if (unsafe_matchURL)
+    };
+    this.loadSharedDataFromUnsafeURL = loadSharedDataFromUnsafeURL;
 
     var viewPointToContextMapPoint = function(viewPoint) {
       return {
@@ -2307,31 +2415,6 @@ if (!window['$']) {
       return "{l:" + getTileidxLevel(t) + ",c:" + getTileidxColumn(t) + ",r:" + getTileidxRow(t) + "}";
     };
 
-    var changePlaybackRate = function(obj) {
-      // Convert to number
-      var rate = $(obj).attr("data-speed") - 0;
-      thisObj.setPlaybackRate(rate);
-      playbackSpeed = rate;
-    };
-    this.changePlaybackRate = changePlaybackRate;
-
-    // TODO: Need to make sure viewport actually changes size.
-    // Need to change logic in fitVideoToViewport()
-    this.switchSize = function(index) {
-      playerSize = index;
-      var newIndex = datasetLayer * tmJSON["sizes"].length + playerSize;
-      validateAndSetDatasetIndex(newIndex);
-      loadTimelapseCallback(tmJSON);
-      $("#" + viewerDivId + " .playerSizeText").text(tmJSON["datasets"][datasetIndex]["name"]);
-    };
-
-    this.switchLayer = function(layerNum) {
-      var newIndex = layerNum * tmJSON["sizes"].length + playerSize;
-      datasetLayer = layerNum;
-      validateAndSetDatasetIndex(newIndex);
-      loadTimelapseCallback(tmJSON);
-    };
-
     function validateAndSetDatasetIndex(newDatasetIndex) {
       // Make sure the datasetIndex is a valid number, and within the range of datasets for this timelapse.
       if (!UTIL.isNumber(newDatasetIndex)) {
@@ -2345,15 +2428,17 @@ if (!window['$']) {
       return ( enableMetadataCacheBreaker ? ("?" + new Date().getTime()) : "");
     }
 
-    var handleLeavePage = function() {
+    var handleLeavePageWithEditor = function() {
       if ((editorEnabled && snaplapse && snaplapse.getKeyframes().length > 0) || (annotator && annotator.getAnnotationList().length > 0)) {
         return "You are attempting to leave this page while creating a tour.";
       }
     };
 
     function setupUIHandlers() {
-      // Leave Page Alert
-      window.onbeforeunload = handleLeavePage;
+      // Alert when an editor (tour or annotator) is up and the user tries to leave the page.
+      if (editorEnabled || annotator) {
+        $(window).on('beforeunload', handleLeavePageWithEditor);
+      }
 
       // On URL hash change, do share view related stuff
       window.onhashchange = handleHashChange;
@@ -2502,10 +2587,11 @@ if (!window['$']) {
 
       _makeVideoVisibleListener(function(videoId) {
         if (videoId == firstVideoId) {
+          if (!didFirstTimeOnLoad)
+            didHashChangeFirstTimeOnLoad = handleHashChange();
+
           // Hash params override the view set during initialization
-          if (handleHashChange()) {
-            // handleHashChange() already did what we wanted
-          } else {
+          if (!didHashChangeFirstTimeOnLoad) {
             // Set the initial view
             if (initialView) {
               _setNewView(initialView, true);
@@ -2515,10 +2601,18 @@ if (!window['$']) {
               _seek(initialTime);
             }
           }
-          // Fire onTimeMachinePlayerReady when the first video is ready
-          if ( typeof (onTimeMachinePlayerReady) === "function") {
-            onTimeMachinePlayerReady(viewerDivId);
+          // Set to false if we ever load a new timelapse at a later time
+          // We do not want to parse anything in the hash in this case.
+          didHashChangeFirstTimeOnLoad = false;
+
+          if (!didFirstTimeOnLoad) {
+            didFirstTimeOnLoad = true;
+            // Fire onTimeMachinePlayerReady the first time the page is loaded.
+            if ( typeof (settings["onTimeMachinePlayerReady"]) === "function") {
+              settings["onTimeMachinePlayerReady"](viewerDivId);
+            }
           }
+
           updateTagInfo_locationData();
         }
       });
@@ -2526,26 +2620,35 @@ if (!window['$']) {
       if (settings["composerDiv"]) {
         $("#" + videoDivId).append('<div class="snaplapse-annotation-description"><div></div></div>');
         snaplapse = new org.gigapan.timelapse.Snaplapse(settings["composerDiv"], thisObj, settings);
+        snaplapseForSharedTour = new org.gigapan.timelapse.Snaplapse(undefined, thisObj, settings, "noUI");
+
+        // TODO:
+        // Disabled because of odd behavior in Chrome. Causes an endless 'waiting for socket' error to appear
+        // if too many tabs/windows are open with Time Machines loaded. The behavior is a bit similar to the Chrome
+        // cache bug in the sense that once you close a window, one that was stuck will start to work.
+        // Visualizer loads a top level video to be used as a context map in the editor. It seeks when the main video also seeks.
+        // Most likely that is at the heart of the problem.
+        //
         // Timewarp visualizer that shows the location of the current view and transitions between keyframes
-        if (!tmJSON['projection-bounds'] && editorEnabled)
-          visualizer = new org.gigapan.timelapse.Visualizer(thisObj, snaplapse, visualizerGeometry);
+        //if (!tmJSON['projection-bounds'] && editorEnabled)
+        //  visualizer = new org.gigapan.timelapse.Visualizer(thisObj, snaplapse, visualizerGeometry);
       }
       if (settings["presentationSliderDiv"])
-        presentationSlider = new org.gigapan.timelapse.Snaplapse(settings["presentationSliderDiv"], thisObj, settings, true);
+        snaplapseForPresentationSlider = new org.gigapan.timelapse.Snaplapse(settings["presentationSliderDiv"], thisObj, settings, "presentation");
       if (settings["annotatorDiv"])
         annotator = new org.gigapan.timelapse.Annotator(settings["annotatorDiv"], thisObj);
 
-      //hasLayers = timelapseMetadataJSON["has_layers"] || false;
-      setupUIHandlers();
       defaultUI = new org.gigapan.timelapse.DefaultUI(thisObj, settings);
-      if (settings["enableCustomUI"] && settings["enableCustomUI"] != false)
+      if (useCustomUI)
         customUI = new org.gigapan.timelapse.CustomUI(thisObj, settings);
 
-      //handlePluginVideoTagOverride(); //TODO
+      // TODO(pdille):
+      // Bring back this feature for those with RealPlayer/DivX or other plugins that take-over the video tag element.
+      //handlePluginVideoTagOverride();
 
+      // Must be placed after customUI is created
       if (settings["scaleBarOptions"] && tmJSON['projection-bounds'])
         scaleBar = new org.gigapan.timelapse.ScaleBar(settings["scaleBarOptions"], thisObj);
-      // Must be placed after TimelineSlider is created
 
       if (isHyperwall)
         customUI.handleHyperwallChangeUI();
@@ -2566,22 +2669,9 @@ if (!window['$']) {
         _seek(halfOfAFrame);
       }
 
+      setupUIHandlers();
       setupSliderHandlers(viewerDivId);
-      cacheAndInitializeElements();
     }
-
-    // TODO: factor out most of this map related code
-    // Cache and initialize DOM elements
-    var cacheAndInitializeElements = function() {
-      Tslider1Full = $("#Tslider1");
-      Tslider1Color = Tslider1Full.find(" .ui-slider-range.ui-widget-header.ui-slider-range-max").get(0);
-      Tslider1Full = Tslider1Full.get(0);
-      if (snaplapse) {
-        $subtitle_DOM = $("#" + viewerDivId + " .snaplapse-annotation-description");
-        subtitle_DOM = $subtitle_DOM.get(0);
-        subtitle_DOM_child = subtitle_DOM.children[0];
-      }
-    };
 
     var computeViewportGeometry = function(data) {
       if (viewportGeometry.max == false) {
@@ -2617,12 +2707,37 @@ if (!window['$']) {
       };
     };
 
-    var loadTimelapse = function(url) {
+    this.switchLayer = function(layerNum) {
+      var newIndex = layerNum * tmJSON["sizes"].length;
+      datasetLayer = layerNum;
+      loadTimelapseWithPreviousViewAndTime = true;
+      doNotResetViewerSize = true;
+      validateAndSetDatasetIndex(newIndex);
+      loadTimelapseCallback(tmJSON);
+    };
+
+    var loadTimelapse = function(url, desiredView, desiredTime, preserveCurrentViewAndTime) {
       showSpinner(viewerDivId);
       settings["url"] = url;
       // Add trailing slash to url if it was omitted
       if (settings["url"].charAt(settings["url"].length - 1) != "/")
         settings["url"] += "/";
+      if (desiredView && typeof (desiredView) === "object") {
+        initialView = desiredView;
+        settings["initialView"] = desiredView;
+      }
+      if (desiredTime && typeof (desiredTime) === "number") {
+        initialTime = desiredTime;
+        settings["initialTime"] = desiredTime;
+      }
+      loadTimelapseWithPreviousViewAndTime = !!preserveCurrentViewAndTime;
+      // We are loading a new timelapse and in order for code that should only be run when the
+      // first video of a timelapse is displayed, we need to reset the firstVideoId to the next
+      // id that the videoset class will use. See _makeVideoVisibleListener() where we check for
+      // first time videos.
+      if (didFirstTimeOnLoad) {
+        firstVideoId = videoDivId + "_" + (videoset.getCurrentVideoId() + 1);
+      }
       UTIL.ajax("json", settings["url"], "tm.json" + getMetadataCacheBreaker(), loadTimelapseCallback);
     };
     this.loadTimelapse = loadTimelapse;
@@ -2632,25 +2747,42 @@ if (!window['$']) {
       // Assume tiles and json are on same host
       tileRootPath = settings["url"];
 
-      if ( typeof (playerSize) === 'undefined') {
-        for (var i = 0; i < tmJSON["sizes"].length; i++) {
-          playerSize = i;
-          if (settings["playerSize"] && tmJSON["sizes"][i].toLowerCase() == settings["playerSize"].toLowerCase())
-            break;
-        }
-      }
       // layer + size = index of dataset
-      validateAndSetDatasetIndex(datasetLayer * tmJSON["sizes"].length + playerSize);
+      validateAndSetDatasetIndex(datasetLayer * tmJSON["sizes"].length);
       var path = tmJSON["datasets"][datasetIndex]['id'] + "/";
       datasetPath = settings["url"] + path;
       UTIL.ajax("json", settings["url"], path + "r.json" + getMetadataCacheBreaker(), loadVideoSetCallback);
+    };
+
+    // Assumes dates are being used as capture times.
+    function findExactOrClosestCaptureTime(timeToFind) {
+      var low = 0, high = captureTimes.length - 1, i, comparison;
+      while (low <= high) {
+        i = Math.floor((low + high) / 2);
+        if (captureTimes[i].length < 11)
+          return 0;
+        var captureTimeStamp = captureTimes[i].substring(11);
+        var newCompare = new Date("2000/01/01 " + captureTimeStamp).toTimeString().substr(0, 5);
+        if (newCompare < timeToFind) {
+          low = i + 1;
+          continue;
+        };
+        if (newCompare > timeToFind) {
+          high = i - 1;
+          continue;
+        };
+        return i;
+      }
+      return i;
     };
 
     var loadVideoSetCallback = function(data) {
       datasetJSON = data;
 
       homeView = null;
-      view = null;
+      if (!loadTimelapseWithPreviousViewAndTime)
+        view = null;
+
       // Reset currentIdx so that we'll load in the new tile with the different resolution.  We don't null the
       // currentVideo here because 1) it will be assigned in the refresh() method when it compares the bestIdx
       // and the currentIdx; and 2) we want currentVideo to be non-null so that the VideosetStats can keep
@@ -2658,13 +2790,19 @@ if (!window['$']) {
       currentIdx = null;
       onPanoLoadSuccessCallback(data, null, true);
       var newViewportGeometry = computeViewportGeometry(data);
-      fitVideoToViewport(newViewportGeometry.width, newViewportGeometry.height);
+
+      if (!doNotResetViewerSize)
+        fitVideoToViewport(newViewportGeometry.width, newViewportGeometry.height);
+      else {
+        _warpTo(view);
+        doNotResetViewerSize = false;
+      }
 
       // The UI is ready now and we can display it
       $("#" + viewerDivId).css("visibility", "visible");
 
       // Setup the UI if this is the first time we are loading a videoset. Else recreate the time slider for the new set,
-      // since it depends upon values from the old set.
+      // since it still depends upon values from the old set.
       if (!defaultUI)
         setupTimelapse();
       else {
@@ -2672,7 +2810,17 @@ if (!window['$']) {
         var $timeSlider = $("#" + viewerDivId + " .timelineSlider");
         $timeSlider.slider("destroy");
         defaultUI.createTimelineSlider();
-        _seek(0);
+        if (loadTimelapseWithPreviousViewAndTime) {
+          var closestFrame = findExactOrClosestCaptureTime(previousCaptureTime);
+          seekToFrame(closestFrame);
+          // Sometimes the time change event is not fired (though it should have since the video did seek)
+          // So we manually update the UI.
+          $timeSlider.slider("option", "value", closestFrame);
+        } else {
+          // Seek to the beginning, even if we are already there to ensure that variables keeping track of time
+          // are properly set for the newly loaded timelapse.
+          _seek(0);
+        }
       }
 
       if (visualizer) {
@@ -2833,26 +2981,6 @@ if (!window['$']) {
         "width": newWidth + 2 + "px",
         "height": newHeight + 2 + "px"
       });
-
-      //$("#"+timelapseViewerDivId+" .layerSlider").css({"top": newHeight+2+$("#" + timelapseViewerDivId + " .controls").height()+"px", "right": "28px"}); // extra 2px for the borders
-
-      // Wiki specific css
-      if (newWidth == 816) {//large video
-        $("#content").css({
-          "padding": "0px 0px 0px 305px"
-        });
-        $("#firstHeading").css({
-          "top": "628px"
-        });
-      } else {
-        $("#content").css({
-          "padding": "0px 0px 0px 0px"
-        });
-        $("#firstHeading").css({
-          "top": "450px"
-        });
-      }
-      // End wiki specific css
     }
 
     var showSpinner = function(viewerDivId) {
@@ -2892,20 +3020,15 @@ if (!window['$']) {
     viewerType = UTIL.getViewerType();
     targetView = {};
 
-    if ( typeof settings["enableCustomUI"] != "undefined" && settings["enableCustomUI"] != false) {
-      if (settings["enableCustomUI"] != "modis")
-        datasetType = "landsat";
-      else
-        datasetType = "modis";
-    }
-
+    // Set default loop dwell time
+    // TODO: this should be set to not just for andsat, but for all short datasets
     if (datasetType == "landsat" && loopDwell == undefined) {
       loopDwell = {
-        "startDwell": 0.5,
-        "endDwell": 0.5
+        "startDwell": defaultLoopDwellTime,
+        "endDwell": defaultLoopDwellTime
       };
-      startDwell = 0.5;
-      endDwell = 0.5;
+      startDwell = defaultLoopDwellTime;
+      endDwell = defaultLoopDwellTime;
     }
 
     UTIL.log('Timelapse("' + settings["url"] + '")');

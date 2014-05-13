@@ -11,14 +11,26 @@ body, html {
   width: 170px;
   height: 28px;
   position: absolute;
-  bottom: 37px;
+  bottom: 39px;
   right: 64px;
   border: 0px;
   background-image: url("../images/createLabLogo.png");
-  -ms-transform: scale(0.647); /* IE 9 */
-  -webkit-transform: scale(0.647); /* Chrome, Safari, Opera */
+  -ms-transform: scale(0.647);
+  -webkit-transform: scale(0.647);
   transform: scale(0.647);
-  display: none;
+}
+
+.timeMachineLogo {
+  width: 194px;
+  height: 28px;
+  position: absolute;
+  bottom: 39px;
+  right: 64px;
+  border: 0px;
+  background-image: url("../images/timeMachineLogo.png");
+  -ms-transform: scale(0.647);
+  -webkit-transform: scale(0.647);
+  transform: scale(0.647);
 }
 
 #player1_timelapse_canvas {
@@ -43,95 +55,6 @@ body, html {
 
 .ui-dialog .ui-button {
   border-radius: 2px;
-}
-
-.editorModeToolbar .playStopTimewarp .ui-icon {
-  background-image: url(../images/ui-icons_custom_256x240.png);
-  margin-left: 3px;
-}
-
-.editorModeToolbar .playStopTimewarp.ui-state-default {
-  width: 120px;
-  color: white;
-  background-color: #71AF71;
-  border-right: 1px solid #656565 !important;
-  border-left: 1px solid #656565 !important;
-}
-
-.editorModeToolbar .playStopTimewarp.ui-state-default:hover:not(
-[disabled]) {
-  background-color: #529952;
-}
-
-.editorModeToolbar .playStopTimewarp.isPlaying.ui-state-default {
-  background-color: rgba(255,0,0,0.4);
-}
-
-.editorModeToolbar .playStopTimewarp.isPlaying.ui-state-default:hover:not(
-[disabled]) {
-  background-color: rgba(255,0,0,0.52);
-}
-
-.editorModeToolbar .newTimewarp {
-  border-right: 1px solid #656565 !important;
-}
-
-.toolbar .editorTitle {
-  position: absolute;
-  left: 20px;
-  top: 10px;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 15px;
-  color: black;
-  opacity: 0.8;
-  font-weight: bold;
-}
-
-.toolbar .toggleMode {
-  position: absolute;
-  width: 138px;
-  height: 20px;
-  bottom: 10px;
-  left: 20px;
-  background: white;
-  border: 1px solid #656565;
-  border-radius: 2px !important;
-  z-index: 30;
-  outline: none;
-}
-
-.toolbar .toggleMode .ui-button-text {
-  text-align: center;
-  padding: 0;
-  font-size: 11px;
-  margin-top: 0px;
-  margin-left: -13px;
-}
-
-.toolbar .toggleMode .ui-icon {
-  margin-right: -4px;
-}
-
-.editorModeOptions {
-  border-radius: 2px;
-  font-size: 11px;
-  box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
-}
-
-.editorModeOptions .ui-corner-all {
-  border-radius: 2px;
-}
-
-.editorModeOptions.ui-menu {
-  position: absolute;
-  width: 116px;
-  padding: 10px;
-  border: 1px solid #656565;
-  z-index: 35;
-}
-
-.editorModeOptions.ui-state-focus {
-  padding: 10px;
 }
 
 .loadingOverlay {
@@ -199,32 +122,6 @@ body, html {
   outline: 0;
 }
 
-.playbackSpeed {
-  position: absolute;
-  width: 152px;
-  height: 17px;
-  bottom: 24px;
-  left: 89px;
-  background: white;
-  border: 1px solid #656565;
-  border-radius: 2px !important;
-  box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
-  z-index: 30;
-  outline: none;
-}
-
-.playbackSpeed .ui-button-text {
-  text-align: center;
-  padding: 0;
-  font-size: 10px;
-  margin-top: -1px;
-  margin-left: -13px;
-}
-
-.playbackSpeed .ui-icon {
-  margin-right: -4px;
-}
-
 .viewerModeBtn {
   position: absolute;
   width: 58px;
@@ -258,7 +155,7 @@ body, html {
 }
 
 .viewerModeBtn.ui-state-active .ui-icon {
-  background-image: url(../images/ui-icons_custom_256x240.png)/*{iconsActive}*/;
+  background-image: url(../images/ui-icons_custom_256x240.png);
 }
 
 .share {
@@ -375,7 +272,7 @@ body, html {
   background-color: white;
   border: 1px solid #656565;
   overflow: visible;
-  bottom: 47px;
+  bottom: 50px;
   left: 88px;
   border-radius: 3px;
 }
@@ -384,9 +281,9 @@ body, html {
   margin: 0px 0px -11px 0px;
   padding: 12px 15px 22px 15px;
   background-repeat: no-repeat;
-  background-position: 70px 100%;
+  background-position: 20px 100%;
   background-image: url(../images/bubble_edge_horizontal_white.png);
-  width: 250px;
+  width: 172px;
 }
 
 .videoTime {
@@ -404,9 +301,9 @@ body, html {
 .captureTime {
   position: absolute;
   left: 90px;
-  bottom: 43px;
-  font-size: 14px;
-  text-shadow: -1px 0 #656565, 0 1px #656565, 1px 0 #656565, 0 -1px #656565, 2px 2px 3px rgba(0,0,0,0.3);
+  bottom: 42px;
+  font-size: 18px;
+  text-shadow: -1px 0 #000, 0 1px #000, 1px 0 #000, 0 -1px #000, 2px 2px 3px rgba(0,0,0,0.3);
   font-family: Arial, Helvetica, sans-serif;
   text-align: center;
   color: white;
@@ -431,7 +328,7 @@ body, html {
 .timelineSliderFiller {
   position: absolute;
   bottom: 26px;
-  left: 258px;
+  left: 160px;
   right: 100px;
   width: auto;
   box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
@@ -471,18 +368,6 @@ body, html {
 .timelineSlider .ui-slider-range {
   background: red;
   opacity: 0.4;
-}
-
-.stopTimeWarp.ui-button {
-  margin: 0px;
-  padding: 0px;
-  display: block;
-  width: 55px;
-  height: 100%;
-  border: 0px solid #656565;
-  border-right: 1px solid #656565;
-  background: white;
-  border-radius: 0px;
 }
 
 .zoomall {
@@ -553,65 +438,6 @@ body, html {
   margin-top: -9px;
 }
 
-.fullscreenLabel.ui-state-default {
-  background: white;
-}
-
-.fullscreenLabel {
-  height: 100%;
-  border-radius: 0;
-  padding: 0;
-}
-
-.addAnnotationLabel .ui-button-text {
-  margin-top: 11px;
-}
-
-.moveAnnotationLabel .ui-button-text {
-  margin-top: 11px;
-}
-
-.playbackSpeedOptions {
-  border-radius: 2px;
-  font-size: 11px;
-  box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
-}
-
-.playbackSpeedOptions .ui-corner-all {
-  border-radius: 2px;
-}
-
-.playbackSpeedOptions.ui-menu {
-  position: absolute;
-  width: 130px;
-  padding: 10px;
-  border: 1px solid #656565;
-  z-index: 27;
-}
-
-.playbackSpeedOptions.ui-state-focus {
-  padding: 10px;
-}
-
-.sizeOptions {
-  border-radius: 2px;
-}
-
-.sizeOptions .ui-corner-all {
-  border-radius: 2px;
-}
-
-.sizeOptions.ui-menu {
-  position: absolute;
-  width: 75px;
-  padding: 10px;
-  border: 1px solid #656565;
-}
-
-.sizeOptions.ui-state-focus {
-  padding: 10px;
-}
-
 .controls {
   position: absolute;
   left: 0px;
@@ -619,178 +445,6 @@ body, html {
   width: 100%;
   height: 60px;
   overflow: visible;
-}
-
-.tools .ui-button {
-  display: block;
-  width: 18px;
-  height: 18px;
-  margin: 0 auto;
-  margin-top: 5px;
-  background: white;
-  border: 1px solid #656565;
-  border-radius: 2px !important;
-  box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
-}
-
-.tools .ui-icon {
-  margin-top: -9px;
-}
-
-.tools .ui-state-active {
-  border: 1px solid #ffffff;
-  background: #959595;
-  color: white;
-}
-
-.tools .ui-state-active .ui-icon {
-  background-image: url(../images/ui-icons_custom_256x240.png)/*{iconsActive}*/;
-}
-
-.toolbar {
-  display: none;
-  width: inherit;
-  height: 40px;
-  background-color: rgb(220,220,220);
-  position: relative;
-  border-right: 1px solid #656565;
-  border-left: 1px solid #656565;
-  border-top: 0px solid #838383;
-  border-bottom: 1px solid #656565;
-  font-size: 12px;
-  margin: 0;
-  padding: 0;
-  z-index: 20;
-}
-
-.editorModeToolbar .ui-state-active {
-  background: #656565 !important;
-  color: white;
-}
-
-.editorModeToolbar .ui-state-active .ui-icon {
-  background-image: url(../images/ui-icons_custom_256x240.png);
-}
-
-.editorModeToolbar .ui-button {
-  min-width: 35px;
-  margin-right: -1px;
-  margin-left: 0px;
-  border-radius: 0px !important;
-  vertical-align: middle;
-  border-top: 0px solid white;
-  border-bottom: 0px solid white;
-  height: 100%;
-  border-left: 1px solid rgb(220,220,220);
-  border-right: 1px solid rgb(220,220,220);
-}
-
-.editorModeToolbar .ui-button:hover:not(
-[disabled]) {
-  /*
-   -moz-box-shadow: 0 0 12px #656565;
-   -webkit-box-shadow: 0 0 12px #656565;
-   box-shadow: 0 0 12px #656565;*/
-  border-right: 1px solid #656565;
-  border-left: 1px solid #656565;
-  z-index: 999;
-}
-
-.toolbar .ui-button:focus {
-  outline: none;
-}
-
-.editorModeToolbar .ui-state-default {
-  background: white;
-}
-
-.annotatorModeToolbar .ui-state-default {
-  background: white;
-}
-
-.editorModeToolbar {
-  margin-top: 0px;
-  margin-left: 0px;
-  margin-right: 0px;
-  margin-bottom: 0px;
-  padding: 0;
-  float: right;
-  display: none;
-  height: 100%;
-}
-
-.annotatorModeToolbar {
-  margin-top: 0px;
-  margin-left: 0px;
-  margin-right: 0px;
-  margin-bottom: 0px;
-  padding: 0;
-  float: right;
-  display: none;
-  height: 100%;
-}
-
-.fullScreenBtnContainer {
-  float: right;
-  display: inline;
-  margin-top: 0px;
-  margin-left: 0px;
-  margin-right: 0px;
-  margin-bottom: 0px;
-  padding: 0;
-  height: 100%;
-}
-
-.carousel {
-  margin: 0 0 20px 10px;
-  /*position: relative;*/
-}
-
-.layerSlider {
-  margin-left: 560px;
-}
-
-.carousel a.prev, .carousel a.next {
-  display: block;
-  float: left;
-  width: 30px;
-  height: 40px;
-  text-decoration: none;
-  background: url("../images/prev.jpg") left 15px no-repeat;
-}
-
-.carousel a.next {
-  height: 50px;
-  position: absolute;
-  margin: -78px 0px 0px 218px;
-  background: url("../images/next.jpg") right 23px no-repeat;
-}
-
-.carousel a.next:hover {
-  background-image: url("../images/next.jpg");
-}
-
-.carousel a.prev:hover {
-  background-image: url("../images/prev.jpg");
-}
-
-.carousel a:hover, .carousel a:active {
-  border: none;
-  outline: none;
-}
-
-.carousel ul {
-  margin: 0;
-}
-
-.carousel li img, .carousel li p {
-  background-color: #fff;
-  margin: 5px;
-  width: 45px;
-}
-
-.jCarouselLite img {
-  cursor: pointer;
 }
 
 .shareurl {
@@ -855,4 +509,27 @@ body, html {
   background: #959595;
   border: 0;
   color: white;
+}
+
+.toggleSpeed.ui-button {
+  position: absolute;
+  width: 55px;
+  height: 17px;
+  top: 19px;
+  left: 89px;
+  background: white;
+  border: 1px solid #656565;
+  border-radius: 3px !important;
+  box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+  z-index: 9;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8pt;
+  color: #656565;
+  display: none;
+  outline: none;
+}
+
+.toggleSpeed .ui-button-text {
+  text-align: center;
+  padding: 0px;
 }

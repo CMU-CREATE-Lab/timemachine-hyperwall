@@ -57,11 +57,15 @@
           composerDiv: "composer1",
           presentationSliderDiv: "presentationSlider1",
           playOnLoad: true,
-          enableCustomUI: "modis",
+          datasetType: "modis",
           viewportGeometry: {
             width: 1068,
             height: 600,
             max: true
+          },
+          onTimeMachinePlayerReady: function(viewerDivId) {
+            console.log("Time Machine player is ready.");
+            setupPostMessageHandlers();
           },
           scaleBarOptions: {
             scaleBarDiv: "scaleBar1"
@@ -73,10 +77,6 @@
           showHomeBtn: false
         };
         timelapse = new org.gigapan.timelapse.Timelapse("player1", viewerSettings);
-      }
-
-      function onTimeMachinePlayerReady(viewerDivId) {
-        setupPostMessageHandlers();
       }
 
       $(init);
