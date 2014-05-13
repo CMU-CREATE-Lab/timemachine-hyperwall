@@ -45,6 +45,18 @@
     <script src="js/multiaxis.js" type="text/javascript"></script>
     <script src="js/locationcontroller.js" type="text/javascript"></script>
 
+    <style type="text/css">
+      #logoUrl {
+        position: absolute;
+        font-size: 40px;
+        text-shadow: -1px 0 #000, 0 1px #000, 1px 0 #000, 0 -1px #000, 2px 2px 3px rgba(0,0,0,0.3);
+        font-family: Arial, Helvetica, sans-serif;
+        color: white;
+        font-weight: normal;
+        z-index: 50;
+      }
+    </style>
+
     <script type="text/javascript">
       jQuery.support.cors = true;
 
@@ -74,6 +86,7 @@
           onTimeMachinePlayerReady: function(viewerDivId) {
             console.log("Time Machine player is ready.");
             viewsync_init();
+            addLogoURL(viewerDivId);
           },
           scaleBarOptions: {
             scaleBarDiv: "scaleBar1"
@@ -85,6 +98,38 @@
           isHyperwall: true
         };
         timelapse = new org.gigapan.timelapse.Timelapse("player1", viewerSettings);
+      }
+
+      function addLogoURL(viewerDivId) {
+        // Add the logo url element
+        if (fields.showLogoUrl == "true")
+          $("#" + viewerDivId).append('<div id="logoUrl">earthengine.google.org</div>');
+        // Reposition the logo url
+        var $logoUrl = $("#logoUrl");
+        var logoUrl_px = "21px";
+        if (fields.logoUrlPosition == undefined)
+          fields.logoUrlPosition = "topLeft";
+        if (fields.logoUrlPosition == "topRight") {
+          $logoUrl.css({
+            "top": logoUrl_px,
+            "right": logoUrl_px
+          });
+        } else if (fields.logoUrlPosition == "topLeft") {
+          $logoUrl.css({
+            "top": logoUrl_px,
+            "left": logoUrl_px
+          });
+        } else if (fields.logoUrlPosition == "bottomRight") {
+          $logoUrl.css({
+            "bottom": logoUrl_px,
+            "right": logoUrl_px
+          });
+        } else if (fields.logoUrlPosition == "bottomLeft") {
+          $logoUrl.css({
+            "bottom": logoUrl_px,
+            "left": logoUrl_px
+          });
+        }
       }
 
       $(init);
