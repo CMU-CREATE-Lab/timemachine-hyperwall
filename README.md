@@ -28,7 +28,7 @@ Download node.js and install it from http://nodejs.org/download/.
 
 - **Go to a browser (Chrome recommended) on the master machine and type in the following address:**
   ```
-  http://localhost:8080/hyperwall.html?master=true&showControls=true&fullControls=true&showMap=true&mapPosition=topRight
+  http://localhost:8080/hyperwall.html?master=true&showControls=true&showMap=true&mapPosition=topRight&showLogoUrl=true&logoUrlPosition=topLeft
   ```
 
 - **Settings after [http://localhost:8080/hyperwall.html?]()**
@@ -37,6 +37,8 @@ Download node.js and install it from http://nodejs.org/download/.
   - fullControls = (true|false; show the play/help button or not)
   - showMap = (true|false; show the google map or not)
   - mapPosition = (topRight|topLeft|bottomRight|bottomLeft; set the map position)
+  - showLogoUrl = (true|false; show the link to Google Earth Engine or not)
+  - logoUrlPosition = (topRight|topLeft|bottomRight|bottomLeft; set the logo url position)
 
 <a name="sync"></a>
 ## Syncing up other machines:
