@@ -121,16 +121,16 @@ if (!window['$']) {
   // instead of "new RegExp()" for better performance (see https://developer.mozilla.org/en/JavaScript/Guide/Regular_Expressions)
   var SPLIT_VIDEO_FRAGMENT_URL_PATTERN = /_(\d+).(mp4|webm)(?:\?time=[0-9]+)?$/i;
 
-  org.gigapan.timelapse.Videoset = function(viewerDivId, videoDivId, timelapse, canvasId, canvasTmpId) {
+  org.gigapan.timelapse.Videoset = function(viewerDivId, videoDivId, timelapse, canvasId, blackFrameDetectionCanvasId) {
     var mediaType = UTIL.getMediaType();
     var viewerType = UTIL.getViewerType();
     var videoDiv = document.getElementById(videoDivId);
     if (viewerType == "canvas") {
       var canvas = document.getElementById(canvasId);
       var canvasContext = canvas.getContext('2d');
-      var canvasTmp = document.getElementById(canvasTmpId);
-      if (canvasTmp) {
-        var canvasTmpContext = canvasTmp.getContext('2d');
+      var blackFrameDetectionCanvas = document.getElementById(blackFrameDetectionCanvasId);
+      if (blackFrameDetectionCanvas) {
+        var blackFrameDetectionCanvasContext = blackFrameDetectionCanvas.getContext('2d');
       }
     }
     var isStatusLoggingEnabled = false;
@@ -238,10 +238,11 @@ if (!window['$']) {
     };
 
     this.setLeader = function(newLeader) {
+      timeOffset = 0;
       var currentTime = _getCurrentTime();
       // Subtract 0 to force this to be a number
       leader = newLeader - 0;
-      _seek(currentTime);
+      //_seek(currentTime);
     };
 
     this.getLeader = function() {
@@ -300,6 +301,10 @@ if (!window['$']) {
     //
 
     var _addVideo = function(src, geometry, video) {
+      // If the src is already added, do not add it again
+      if (Object.keys(activeVideoSrcList).indexOf(src) > -1){
+        return activeVideos[videoDiv.id + "_" + id];
+      }
       //perfAdded++;
       id++;
       // Note: Safari and Chrome already let you do this
@@ -357,7 +362,11 @@ if (!window['$']) {
           return this.currentTime;
         };
         video.setCurrentTime = function(newTime) {
-          this.currentTime = newTime;
+          // If we rapidly zoom, then we may have old lingering videos that we attempt to seek on.
+          // Make sure we only seek the current video.
+          if (this.id == currentVideoId) {
+            this.currentTime = newTime;
+          }
         };
       }
 
@@ -509,7 +518,7 @@ if (!window['$']) {
       var currentTimeInMs = (new Date()).getTime();
       for (var videoSrc in activeVideoSrcList) {
         // Check if >= 1 day or if we just need to delete the item
-        if ((checkTimestamps && (currentTimeInMs - activeVideoSrcList[videoSrc] >= 86400000)) || typeof(checkTimestamps) !== 'boolean') {
+        if ((checkTimestamps && (currentTimeInMs - activeVideoSrcList[videoSrc] >= 86400000)) || typeof (checkTimestamps) !== 'boolean') {
           delete activeVideoSrcList[videoSrc];
         }
       }
@@ -739,7 +748,8 @@ if (!window['$']) {
     };
 
     this.setPlaybackRate = function(rate) {
-      if (isSafari && rate > 0 && rate <= 0.25) rate = 0.5;
+      if (isSafari && rate > 0 && rate <= 0.25)
+        rate = 0.5;
 
       if (rate != playbackRate) {
         var t = _getCurrentTime();
@@ -785,7 +795,6 @@ if (!window['$']) {
         if (!eventListeners[eventName]) {
           eventListeners[eventName] = [];
         }
-
         eventListeners[eventName].push(listener);
       }
     };
@@ -1363,11 +1372,11 @@ if (!window['$']) {
       if (video.active && video.ready && !video.seeking && video.readyState >= 2 && video.canDraw == true) {
         // Black frame detection
         var videoGeometry = video.geometry;
-        if (canvasTmp) {
-          canvasTmpContext.clearRect(0, 0, canvasTmp.width, canvasTmp.height);
-          canvasTmpContext.drawImage(video, videoGeometry.left, videoGeometry.top, videoGeometry.width, videoGeometry.height);
+        if (blackFrameDetectionCanvas) {
+          blackFrameDetectionCanvasContext.clearRect(0, 0, blackFrameDetectionCanvas.width, blackFrameDetectionCanvas.height);
+          blackFrameDetectionCanvasContext.drawImage(video, videoGeometry.left, videoGeometry.top, videoGeometry.width, videoGeometry.height);
 
-          var image = canvasTmpContext.getImageData(0, 0, canvasTmp.width, canvasTmp.height);
+          var image = blackFrameDetectionCanvasContext.getImageData(0, 0, blackFrameDetectionCanvas.width, blackFrameDetectionCanvas.height);
           var imgData = image.data;
           var len = imgData.length;
 

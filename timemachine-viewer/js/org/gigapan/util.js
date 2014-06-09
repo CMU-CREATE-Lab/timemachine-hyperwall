@@ -80,9 +80,10 @@ if (!org.gigapan) {
   var isOperaLegacyUserAgent = typeof (window.opera) !== "undefined";
   var isOperaUserAgent = navigator.userAgent.match(/OPR/) != null;
   var isChromeOS = navigator.userAgent.match(/CrOS/) != null;
-  var mediaType = ".mp4";
+  var mediaType = null;
   var viewerType = (isSafariUserAgent || isChromeOS) ? "video" : "canvas";
   var rootAppURL = computeRootAppURL();
+  var supportedMediaTypes = [];
 
   //0 == none
   //1 == errors only
@@ -102,26 +103,26 @@ if (!org.gigapan) {
     return (navigator.userAgent.match(/Android/i) || navigator.userAgent.match(/webOS/i) || navigator.userAgent.match(/iPhone/i) || navigator.userAgent.match(/iPad/i) || navigator.userAgent.match(/iPod/i) || navigator.userAgent.match(/BlackBerry/i) || navigator.userAgent.match(/Windows Phone/i));
   };
 
-  org.gigapan.Util.browserSupported = function() {
+  org.gigapan.Util.browserSupported = function(forcedMediaType) {
     var v = document.createElement('video');
-    var canPlay = false;
-    // We do not support mobile devices (Android, iOS, etc) due to OS limitations
+    // We do not support mobile devices (Android, iOS, etc) due to their OS limitations
     if (org.gigapan.Util.isMobile())
-      return canPlay;
-    // Check if video tag is supported and that the browser supports WebM
-    canPlay = !!(v.canPlayType && v.canPlayType('video/webm; codecs="vp8"').replace(/no/, ''));
-    if (canPlay) {
-      canPlay = true;
-      mediaType = ".webm";
-    } else {
-      // Check if video tag is supported and that the browser supports H.264
-      canPlay = !!(v.canPlayType && v.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"').replace(/no/, ''));
-      if (canPlay) {
-        canPlay = true;
-        mediaType = ".mp4";
-      }
+      return false;
+    // Check if the video tag is supported
+    if (!!!v.canPlayType)
+      return false;
+    // See what video formats are actually supported
+    if (!mediaType) {
+      setMediaType(forcedMediaType);
     }
-    return canPlay;
+    // We may support the video tag, but perhaps we do not support the formats that our viewer uses
+    if (supportedMediaTypes.length == 0)
+      return false;
+    // If a format is being forced via the viewer settings, check that the browser actually supports it
+    if (forcedMediaType && supportedMediaTypes.indexOf(forcedMediaType) < 0)
+      return false;
+    // The viewer is supported by the browser
+    return true;
   };
 
   org.gigapan.Util.isChrome = function() {
@@ -156,11 +157,23 @@ if (!org.gigapan) {
     return mediaType;
   };
 
-  org.gigapan.Util.setMediaType = function(type) {
-    if (type != ".mp4" && type != ".webm")
-      return;
-    mediaType = type;
-  };
+  function setMediaType(newType) {
+    var v = document.createElement('video');
+    if (!mediaType) { // If this is the first time we are setting the media type, check what formats are supported.
+      if (!!v.canPlayType('video/webm; codecs="vp8"').replace(/no/, '')) {
+        supportedMediaTypes.push(".webm");
+      }
+      if (!!v.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"').replace(/no/, '')) {
+        supportedMediaTypes.push(".mp4");
+      }
+      if (newType) // If a video format is being forced via the viewer settings, use it.
+        mediaType = newType;
+      else // If the browser supports both types, default to webm. Note that there might be no supported types and thus mediaType will be set to undefined.
+        mediaType = supportedMediaTypes[0];
+    } else { // Else set to the format passed in.
+      mediaType = newType;
+    }
+  }
 
   org.gigapan.Util.getViewerType = function() {
     return viewerType;
@@ -320,18 +333,29 @@ if (!org.gigapan) {
     return vars;
   };
 
+  // Note: Hash string may contain potentially unsafe user-inputted data.
+  // Caution must be taken when working with it.
+  org.gigapan.Util.getUnsafeHashString = function() {
+    var unsafeHashSource = "";
+    var unsafeHashIframe = "";
+    unsafeHashSource = window.location.hash;
+    try {
+      unsafeHashIframe = window.top.location.hash;
+      if (unsafeHashSource)
+        unsafeHashIframe = unsafeHashIframe.slice(1);
+    } catch(e) {
+      // Most likely we are dealing with different domains and cannot access window.top
+    }
+    return unsafeHashSource + "&" + unsafeHashIframe;
+  }
+
   // Note: Hash variables may contain potentially unsafe user-inputted data.
   // Caution must be taken when working with these values.
   org.gigapan.Util.getUnsafeHashVars = function() {
-    var hashSource = "";
-    var hashIframe = "";
-    // TODO: link to our page on the time machine website
-    hashSource = window.location.hash.slice(1);
-    try {
-      hashIframe = window.top.location.hash.slice(1);
-    } catch(e) {
-    }
-    return org.gigapan.Util.unpackVars(hashSource + "&" + hashIframe);
+    var unsafeHashString = org.gigapan.Util.getUnsafeHashString();
+    if (unsafeHashString.length > 1)
+      unsafeHashString = unsafeHashString.slice(1);
+    return org.gigapan.Util.unpackVars(unsafeHashString);
   };
 
   // Select an element in jQuery selectable
@@ -394,7 +418,7 @@ if (!org.gigapan) {
         });
       } else {
         // The reason to hide and show the elements is the workaround for a webkit refresh bug
-        $keyframeContainer.hide().show(0);
+        //$keyframeContainer.hide().show(0);
       }
     }
   };
@@ -432,7 +456,7 @@ if (!org.gigapan) {
     if (isAbsoluteURL > 0) {
       // Include is an absolute URL "http(s)://..."
       var absoluteURLIndex = pathOfCurrentScript.indexOf('/', pathOfCurrentScript.indexOf('://') + 3);
-      absoluteURLName = pathOfCurrentScript.substring(0, absoluteURLIndex) + '/';
+      var absoluteURLName = pathOfCurrentScript.substring(0, absoluteURLIndex) + '/';
       var absoluteURLFolderIndex = pathOfCurrentScript.indexOf('/', pathOfCurrentScript.indexOf(absoluteURLName) + absoluteURLName.length);
       if (absoluteURLFolderIndex < 0) {
         return absoluteURLName;

@@ -2,13 +2,13 @@
 if (fields.master) {
   var controlReciever = io.connect('/controller');
   var getKeyframeFromCurrentHyperwallView = function(frameTitle) {
-    var snaplapse = timelapse.getSnaplapse();
-    var snaplapseViewer = snaplapse.getSnaplapseViewer();
-    var keyframe = snaplapse.recordKeyframe();
+    var snaplapseForSharedTour = timelapse.getSnaplapseForSharedTour();
+    var snaplapseViewerForSharedTour = snaplapseForSharedTour.getSnaplapseViewer();
+    var keyframe = snaplapseForSharedTour.recordKeyframe();
     var settings = timelapse.getSettings();
     keyframe.unsafe_string_frameTitle = frameTitle;
     keyframe.centerView = timelapse.pixelBoundingBoxToLatLngCenterView(keyframe.bounds);
-    keyframe.thumbnailURL = snaplapseViewer.generateThumbnailURL(settings["url"], keyframe.bounds, 260, 185, keyframe.time);
+    keyframe.thumbnailURL = snaplapseViewerForSharedTour.generateThumbnailURL(settings["url"], keyframe.bounds, 260, 185, keyframe.time);
     return keyframe;
   };
   var previousMapLng = 0;
@@ -45,39 +45,39 @@ if (fields.master) {
   });
 
   controlReciever.on('sync playTour', function(tourFragment) {
-    var snaplapse = timelapse.getSnaplapse();
-    var snaplapseViewer = snaplapse.getSnaplapseViewer();
-    var tourJSON = snaplapse.urlStringToJSON(tourFragment);
-    snaplapse.loadFromJSON(tourJSON, 0);
-    snaplapseViewer.addEventListener('snaplapse-loaded', function() {
-      snaplapse.play();
+    var snaplapseForSharedTour = timelapse.getSnaplapseForSharedTour();
+    var snaplapseViewerForSharedTour = snaplapseForSharedTour.getSnaplapseViewer();
+    var tourJSON = snaplapseForSharedTour.urlStringToJSON(tourFragment);
+    snaplapseForSharedTour.loadFromJSON(tourJSON, 0);
+    snaplapseViewerForSharedTour.addEventListener('snaplapse-loaded', function() {
+      snaplapseForSharedTour.play();
     });
   });
 
   controlReciever.on('sync encodeTour', function(tourJSON) {
-    controlReciever.emit('returnEncodeTour', timelapse.getSnaplapse().getAsUrlString(tourJSON.keyframes));
+    controlReciever.emit('returnEncodeTour', timelapse.getSnaplapseForSharedTour().getAsUrlString(tourJSON.keyframes));
   });
 
   controlReciever.on('sync decodeTour', function(tourURL) {
-    var snaplapse = timelapse.getSnaplapse();
-    var snaplapseViewer = snaplapse.getSnaplapseViewer();
+    var snaplapseForSharedTour = timelapse.getSnaplapseForSharedTour();
+    var snaplapseViewerForSharedTour = snaplapseForSharedTour.getSnaplapseViewer();
     var match = tourURL.match(/(presentation)=([^#?&]*)/);
     var presentation = match[2];
-    var tourJSON = JSON.parse(snaplapse.urlStringToJSON(presentation));
+    var tourJSON = JSON.parse(snaplapseForSharedTour.urlStringToJSON(presentation));
     var tourJSON = tourJSON.snaplapse;
     var settings = timelapse.getSettings();
     for (var i = 0; i < tourJSON.keyframes.length; i++) {
       var keyframe = tourJSON.keyframes[i];
       keyframe.centerView = timelapse.pixelBoundingBoxToLatLngCenterView(keyframe.bounds);
-      keyframe.thumbnailURL = snaplapseViewer.generateThumbnailURL(settings["url"], keyframe.bounds, 260, 185, keyframe.time);
+      keyframe.thumbnailURL = snaplapseViewerForSharedTour.generateThumbnailURL(settings["url"], keyframe.bounds, 260, 185, keyframe.time);
     }
     controlReciever.emit('returnDecodeTour', tourJSON);
   });
 
   controlReciever.on('sync mapViewUpdate', function(data) {
-    var snaplapse = timelapse.getSnaplapse();
-    if (snaplapse.isPlaying())
-      snaplapse.stop();
+    var snaplapseForSharedTour = timelapse.getSnaplapseForSharedTour();
+    if (snaplapseForSharedTour.isPlaying())
+      snaplapseForSharedTour.stop();
     var formattedData = data.split(" ");
     var mapLatLng = {
       "lat": parseFloat(formattedData[0]),

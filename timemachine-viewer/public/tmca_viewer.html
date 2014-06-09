@@ -5,7 +5,7 @@
 
     <link href="css/snaplapse.css" rel="stylesheet" type="text/css"/>
     <link href="css/jquery-ui/smoothness/jquery-ui.custom.css" rel="stylesheet" type="text/css"/>
-    <link href="css/player.css" rel="stylesheet" type="text/css"/>
+    <link href="css/defaultUI.css" rel="stylesheet" type="text/css"/>
     <link href="css/visualizer.css" rel="stylesheet" type="text/css"/>
     <link href="css/annotator.css" rel="stylesheet" type="text/css"/>
 
@@ -34,11 +34,10 @@
       var url = "./";
 
       function init() {
-        var viewerSettings = {
+        var settings = {
           url: url,
-          composerDiv: "composer1",
+          enableEditor: true,
           onTimeMachinePlayerReady: function(viewerDivId) {
-            console.log("Time Machine player is ready.");
           },
           disableTourLooping: true,
           mediaType: ".mp4",
@@ -46,17 +45,13 @@
           useThumbnailServer: false,
           showEditorModeButton: false
         };
-        timelapse = new org.gigapan.timelapse.Timelapse("player1", viewerSettings);
-      }
-
-      function onTimeMachinePlayerReady(viewerDivId) {
+        timelapse = new org.gigapan.timelapse.Timelapse("timeMachine", settings);
       }
 
       $(init);
     </script>
   </head>
   <body>
-    <div id="player1" style="position: absolute; top:10px; left:10px;"></div>
-    <div id="composer1"></div>
+    <div id="timeMachine"></div>
   </body>
 </html>

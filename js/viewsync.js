@@ -67,7 +67,7 @@ function viewsync_init() {
       }
 
       if (fields.showMap || fields.showControls)
-        timelapse.updateTagInfo_locationData();
+        timelapse.updateLocationContextUI();
 
       viewsync.emit('view', {
         "bbox": bbox,
@@ -108,7 +108,7 @@ function viewsync_init() {
       };
 
       if (fields.showMap || fields.showControls)
-        timelapse.updateTagInfo_locationData();
+        timelapse.updateLocationContextUI();
 
       timelapse.warpToBoundingBox(bbox);
     });

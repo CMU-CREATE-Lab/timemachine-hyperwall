@@ -5,7 +5,7 @@
 
     <link href="timemachine-viewer/css/snaplapse.css" rel="stylesheet" type="text/css"/>
     <link href="timemachine-viewer/css/jquery-ui/smoothness/jquery-ui.custom.css" rel="stylesheet" type="text/css"/>
-    <link href="timemachine-viewer/css/player.css" rel="stylesheet" type="text/css"/>
+    <link href="timemachine-viewer/css/defaultUI.css" rel="stylesheet" type="text/css"/>
     <link href="timemachine-viewer/css/smallGoogleMap.css" rel="stylesheet" type="text/css"/>
     <link href="timemachine-viewer/css/scaleBar.css" rel="stylesheet" type="text/css"/>
     <link href="timemachine-viewer/css/visualizer.css" rel="stylesheet" type="text/css"/>
@@ -55,6 +55,13 @@
         font-weight: normal;
         z-index: 50;
       }
+      #timeMachine {
+        position: absolute;
+        left: 0px;
+        top: 0px;
+        width: 100%;
+        height: 100%;
+      }
     </style>
 
     <script type="text/javascript">
@@ -75,16 +82,9 @@
         };
         var viewerSettings = {
           url: url,
-          composerDiv: "composer1",
           datasetType: "landsat",
           //mediaType: ".mp4",
-          viewportGeometry: {
-            width: 1068,
-            height: 600,
-            max: true
-          },
           onTimeMachinePlayerReady: function(viewerDivId) {
-            console.log("Time Machine player is ready.");
             viewsync_init();
             addLogoURL(viewerDivId);
           },
@@ -97,7 +97,7 @@
           newHomeView: myHomeView,
           isHyperwall: true
         };
-        timelapse = new org.gigapan.timelapse.Timelapse("player1", viewerSettings);
+        timelapse = new org.gigapan.timelapse.Timelapse("timeMachine", viewerSettings);
       }
 
       function addLogoURL(viewerDivId) {
@@ -136,6 +136,6 @@
     </script>
   </head>
   <body style="overflow: hidden">
-    <div id="player1" style="overflow: hidden"></div>
+    <div id="timeMachine" style="overflow: hidden"></div>
   </body>
 </html>

@@ -113,7 +113,7 @@ if (!window['$']) {
 //
 (function() {
   var UTIL = org.gigapan.Util;
-  org.gigapan.timelapse.Timelapse = function(viewerDivId, settings) {
+  org.gigapan.timelapse.Timelapse = function(timeMachineDivId, settings) {
     availableTimelapses.push(this);
 
     // Settings
@@ -134,15 +134,10 @@ if (!window['$']) {
     var startDwell = (!loopDwell || typeof (settings["loopDwell"]["startDwell"]) == "undefined") ? 0 : settings["loopDwell"]["startDwell"];
     var endDwell = (!loopDwell || typeof (settings["loopDwell"]["endDwell"]) == "undefined") ? 0 : settings["loopDwell"]["endDwell"];
     var blackFrameDetection = ( typeof (settings["blackFrameDetection"]) == "undefined") ? false : settings["blackFrameDetection"];
-    var viewportGeometry = {
-      width: ( typeof (settings["viewportGeometry"]) == "undefined" || typeof (settings["viewportGeometry"]['width']) == "undefined") ? undefined : settings["viewportGeometry"]['width'],
-      height: ( typeof (settings["viewportGeometry"]) == "undefined" || typeof (settings["viewportGeometry"]['height']) == "undefined") ? undefined : settings["viewportGeometry"]['height'],
-      max: ( typeof (settings["viewportGeometry"]) == "undefined" || typeof (settings["viewportGeometry"]['max']) == "undefined") ? false : settings["viewportGeometry"]['max']
-    };
     var skippedFramesAtEnd = ( typeof (settings["skippedFramesAtEnd"]) == "undefined" || settings["skippedFramesAtEnd"] < 0) ? 0 : settings["skippedFramesAtEnd"];
     var skippedFramesAtStart = ( typeof (settings["skippedFramesAtStart"]) == "undefined" || settings["skippedFramesAtStart"] < 0) ? 0 : settings["skippedFramesAtStart"];
-    var mediaType = ( typeof (settings["mediaType"]) == "undefined") ? null : settings["mediaType"];
     var enableMetadataCacheBreaker = settings["enableMetadataCacheBreaker"] || false;
+    var enableContextMapOnDefaultUI = ( typeof (settings["enableContextMapOnDefaultUI"]) == "undefined") ? false : settings["enableContextMapOnDefaultUI"];
     var datasetType = settings["datasetType"];
     var useCustomUI = (settings["datasetType"] == "landsat" || settings["datasetType"] == "modis");
     var visualizerGeometry = {
@@ -158,8 +153,9 @@ if (!window['$']) {
     // Otherwise, we will still handle tours but no editor will be displayed.
     // (No thumbnails for keyframes pulled and loading a tour will display a load
     // button with the tour name on the center of the viewport.)
-    var editorEnabled = settings["composerDiv"] && $("#" + settings["composerDiv"]).length;
-    var presentationSliderEnabled = settings["presentationSliderDiv"] && $("#" + settings["presentationSliderDiv"]).length;
+    var editorEnabled = ( typeof (settings["enableEditor"]) == "undefined") ? false : settings["enableEditor"];
+    var presentationSliderEnabled = ( typeof (settings["enablePresentationSlider"]) == "undefined") ? false : settings["enablePresentationSlider"];
+    var annotatorEnabled = ( typeof (settings["enableAnnotator"]) == "undefined") ? false : settings["enableAnnotator"];
 
     // Objects
     var videoset;
@@ -174,14 +170,11 @@ if (!window['$']) {
     var visualizer;
 
     // DOM elements
-    var panoVideo;
     var dataPanesId;
 
     // Canvas version
     var canvas;
-    var canvasTmp;
-    var canvasContext;
-    var canvasTmpContext;
+    var blackFrameDetectionCanvas;
 
     // Full screen variables
     var fullScreen = false;
@@ -201,9 +194,9 @@ if (!window['$']) {
     var loadTimelapseWithPreviousViewAndTime = false;
     var didHashChangeFirstTimeOnLoad = false;
     var didFirstTimeOnLoad = false;
-    var doNotResetViewerSize = false;
 
     // Viewer
+    var viewerDivId = timeMachineDivId + " .player";
     var viewerType;
     var videoDiv;
     var tiles = {};
@@ -222,7 +215,7 @@ if (!window['$']) {
     var levelInfo;
     var metadata = null;
     var view = null;
-    var targetView = null;
+    var targetView = {};
     var currentIdx = null;
     var currentVideo = null;
     var animateInterval = null;
@@ -248,15 +241,17 @@ if (!window['$']) {
     var timelapseCurrentCaptureTimeIndex = 0;
     var captureTimes = [];
     var homeView;
+    var panoView;
     var firstVideoId;
-    var topLevelVideo = {};
     var originalPlaybackRate = playbackSpeed;
     var originalLoopPlayback = loopPlayback;
     var translationSpeedConstant = 20;
-    var leader;
     var parabolicMotionController;
     var parabolicMotionObj = org.gigapan.timelapse.parabolicMotion;
     var previousCaptureTime;
+    var mediaType = null;
+    var desiredInitialDate;
+    var onNewTimelapseLoadCompleteCallBack;
 
     // animateRate in milliseconds, 40 means 25 FPS
     var animateRate = isHyperwall ? 10 : 40;
@@ -283,40 +278,10 @@ if (!window['$']) {
     var defaultLevelThreshold = 0.05;
     var levelThreshold = defaultLevelThreshold;
 
-    // Scale bar, small google map, editor, annotator
-    var tagInfo_locationData = {
-      "tagPointNE_nav": {
-        "x": undefined,
-        "y": undefined
-      },
-      "tagPointSW_nav": {
-        "x": undefined,
-        "y": undefined
-      },
-      "tagPointCenter_nav": {
-        "x": undefined,
-        "y": undefined
-      },
-      "tagLatLngNE_nav": {
-        "lat": undefined,
-        "lng": undefined
-      },
-      "tagLatLngSW_nav": {
-        "lat": undefined,
-        "lng": undefined
-      },
-      "tagLatLngCenter_nav": {
-        "lat": undefined,
-        "lng": undefined
-      },
-      "homeView": {
-        "xmin": undefined,
-        "ymin": undefined
-      },
-      "distance_pixel_lng": undefined,
-      "scale_map_nav": undefined,
-      "tagPointRadius_nav": undefined
-    };
+    // Scale bar, small google map, visualizer
+    var panoVideo;
+    var topLevelVideo = {};
+    var leader;
 
     // Constants
     var CONSTANTS = {
@@ -337,6 +302,14 @@ if (!window['$']) {
     //
     // Public methods
     //
+    this.getHomeView = function() {
+      return homeView;
+    };
+
+    this.getPanoView = function() {
+      return panoView;
+    };
+
     this.getDatasetType = function() {
       return datasetType;
     };
@@ -381,12 +354,16 @@ if (!window['$']) {
       return doingLoopingDwell;
     };
 
-    this.getEditorEnabled = function() {
+    this.isEditorEnabled = function() {
       return editorEnabled;
     };
 
-    this.getPresentationSliderEnabled = function() {
+    this.isPresentationSliderEnabled = function() {
       return presentationSliderEnabled;
+    };
+
+    this.isAnnotatorEnabled = function() {
+      return annotatorEnabled;
     };
 
     this.getDefaultUI = function() {
@@ -455,16 +432,16 @@ if (!window['$']) {
       return visualizer;
     };
 
-    this.getTagInfo_locationData = function() {
-      return tagInfo_locationData;
-    };
-
     this.setSmallGoogleMapEnableStatus = function(status) {
       enableSmallGoogleMap = status;
     };
 
     this.isSmallGoogleMapEnable = function() {
       return enableSmallGoogleMap;
+    };
+
+    this.getTimeMachineDivId = function() {
+      return timeMachineDivId;
     };
 
     this.getViewerDivId = function() {
@@ -489,10 +466,6 @@ if (!window['$']) {
 
     this.getCanvas = function() {
       return canvas;
-    };
-
-    this.getCanvasTmp = function() {
-      return canvasTmp;
     };
 
     this.getAnnotator = function() {
@@ -594,7 +567,7 @@ if (!window['$']) {
       if (scale == undefined) {
         scale = view.scale;
       }
-      return Math.round(1e3 * Math.log(scale / (_homeView().scale)) / Math.log(2)) / 1e3;
+      return Math.round(1e3 * Math.log(scale / (panoView.scale)) / Math.log(2)) / 1e3;
     };
     this.scaleToZoom = scaleToZoom;
 
@@ -602,7 +575,7 @@ if (!window['$']) {
       if (zoom == undefined) {
         zoom = getCurrentZoom();
       }
-      return Math.pow(2, zoom) * _homeView().scale;
+      return Math.pow(2, zoom) * panoView.scale;
     };
     this.zoomToScale = zoomToScale;
 
@@ -768,23 +741,24 @@ if (!window['$']) {
     };
     this.warpTo = _warpTo;
 
-    var _homeView = function() {
-      if (homeView == undefined || !UTIL.isNumber(homeView.scale)) {
-        if (settings["newHomeView"] != undefined) {
-          // Store the home view so we don't need to compute it every time
-          homeView = pixelBoundingBoxToPixelCenter(pixelCenterToPixelBoundingBoxView(settings["newHomeView"]).bbox);
-        } else {
-          homeView = pixelBoundingBoxToPixelCenter({
-            xmin: 0,
-            ymin: 0,
-            xmax: panoWidth,
-            ymax: panoHeight
-          });
-        }
+    var computeHomeView = function() {
+      computePanoView();
+      if (settings["newHomeView"] != undefined) {
+        // Store the home view so we don't need to compute it every time
+        homeView = pixelBoundingBoxToPixelCenter(pixelCenterToPixelBoundingBoxView(settings["newHomeView"]).bbox);
+      } else {
+        homeView = panoView;
       }
-      return homeView;
     };
-    this.homeView = _homeView;
+
+    var computePanoView = function() {
+      panoView = pixelBoundingBoxToPixelCenter({
+        xmin: 0,
+        ymin: 0,
+        xmax: panoWidth,
+        ymax: panoHeight
+      });
+    };
 
     this.getBoundingBoxForCurrentView = function() {
       var bboxView = pixelCenterToPixelBoundingBoxView(view);
@@ -851,7 +825,7 @@ if (!window['$']) {
     };
     this.addViewEndChangeListener = _addViewEndChangeListener;
 
-    var _removEndViewChangeListener = function(listener) {
+    var _removeEndViewChangeListener = function(listener) {
       for (var i = 0; i < viewEndChangeListeners.length; i++) {
         if (viewEndChangeListeners[i] == listener[0]) {
           viewEndChangeListeners.splice(i, 1);
@@ -859,7 +833,7 @@ if (!window['$']) {
         }
       }
     };
-    this.removEndViewChangeListener = _removEndViewChangeListener;
+    this.removeEndViewChangeListener = _removeEndViewChangeListener;
 
     var _addVideoPauseListener = function(listener) {
       videoset.addEventListener('videoset-pause', listener);
@@ -875,6 +849,11 @@ if (!window['$']) {
       videoset.addEventListener('video-made-visible', listener);
     };
     this.makeVideoVisibleListener = _makeVideoVisibleListener;
+
+    var _removeVideoVisibleListener = function(listener) {
+      videoset.removeEventListener('video-made-visible', listener);
+    };
+    this.removeVideoVisibleListener = _removeVideoVisibleListener;
 
     var _addPlaybackRateChangeListener = function(listener) {
       playbackRateChangeListeners.push(listener);
@@ -897,11 +876,11 @@ if (!window['$']) {
 
     var getViewStrAsProjection = function() {
       var latlng = _getProjection().pointToLatlng(view);
-      return Math.round(1e5 * latlng.lat) / 1e5 + "," + Math.round(1e5 * latlng.lng) / 1e5 + "," + Math.round(1e3 * Math.log(view.scale / _homeView().scale) / Math.log(2)) / 1e3 + "," + "latLng";
+      return Math.round(1e5 * latlng.lat) / 1e5 + "," + Math.round(1e5 * latlng.lng) / 1e5 + "," + Math.round(1e3 * Math.log(view.scale / panoView.scale) / Math.log(2)) / 1e3 + "," + "latLng";
     };
 
     var getViewStrAsPoints = function() {
-      return Math.round(1e5 * view.x) / 1e5 + "," + Math.round(1e5 * view.y) / 1e5 + "," + Math.round(1e3 * Math.log(view.scale / _homeView().scale) / Math.log(2)) / 1e3 + "," + "pts";
+      return Math.round(1e5 * view.x) / 1e5 + "," + Math.round(1e5 * view.y) / 1e5 + "," + Math.round(1e3 * Math.log(view.scale / panoView.scale) / Math.log(2)) / 1e3 + "," + "pts";
     };
 
     var _getViewStr = function() {
@@ -921,7 +900,7 @@ if (!window['$']) {
       newView = _normalizeView(newView);
 
       var defaultEndViewCallback = function() {
-        _removEndViewChangeListener(this);
+        _removeEndViewChangeListener(this);
         parabolicMotionController = null;
         if (doPlay)
           thisObj.handlePlayPause();
@@ -993,31 +972,33 @@ if (!window['$']) {
     };
     this.getShareView = getShareView;
 
-    // Extract a safe view object from an unsafe view string.
-    var unsafeViewToView = function(viewParam) {
+    // Extract a safe view from either a view object (i.e. {center:{x:val, y:val}, zoom:val}) or
+    // from an array of strings (i.e. a share URL, such as #v=44.96185,59.06233,4.5,latLng&t=0.10,
+    // that has been unpacked).
+    var unsafeViewToView = function(unsafe_viewParam) {
       var view = null;
 
-      if (!viewParam)
-        return view;
+      if (!unsafe_viewParam)
+        return null;
 
-      // If the view is not a string (i.e an object) then we need to break it up into one
-      // so that we can sanitize it below.
-      if (viewParam.center || viewParam.bbox) {
+      // If we have a view object and not an array of strings (i.e. an unpacked share URL) then we need to unpack
+      // the view object into an array of strings so that it can be properly sanitized further down.
+      if (unsafe_viewParam.center || unsafe_viewParam.bbox) {
         var tmpViewParam = [];
-        if (viewParam.center) {
+        if (unsafe_viewParam.center) {
           var isLatLng = false;
-          var centerView = viewParam.center;
+          var centerView = unsafe_viewParam.center;
           for (var key in centerView) {
             tmpViewParam.push(centerView[key]);
             if (key == "lat")
               isLatLng = true;
           }
-          tmpViewParam.push(viewParam.zoom);
+          tmpViewParam.push(unsafe_viewParam.zoom);
           isLatLng ? tmpViewParam.push("latLng") : tmpViewParam.push("pts");
-          viewParam = tmpViewParam;
-        } else if (viewParam.bbox) {
+          unsafe_viewParam = tmpViewParam;
+        } else if (unsafe_viewParam.bbox) {
           var isLatLng = false;
-          var bboxView = viewParam.bbox;
+          var bboxView = unsafe_viewParam.bbox;
           for (var key in bboxView) {
             if (key == "ne" || key == "sw") {
               isLatLng = true;
@@ -1028,48 +1009,48 @@ if (!window['$']) {
             }
           }
           isLatLng ? tmpViewParam.push("latLng") : tmpViewParam.push("pts");
-          viewParam = tmpViewParam;
+          unsafe_viewParam = tmpViewParam;
         }
       }
 
-      if (viewParam.indexOf("latLng") != -1) {
-        if (viewParam.length == 4)
+      if (unsafe_viewParam.indexOf("latLng") != -1) {
+        if (unsafe_viewParam.length == 4)
           view = {
             center: {
-              "lat": parseFloat(viewParam[0]),
-              "lng": parseFloat(viewParam[1])
+              "lat": parseFloat(unsafe_viewParam[0]),
+              "lng": parseFloat(unsafe_viewParam[1])
             },
-            "zoom": parseFloat(viewParam[2])
+            "zoom": parseFloat(unsafe_viewParam[2])
           };
-        else if (viewParam.length == 5)
+        else if (unsafe_viewParam.length == 5)
           view = {
             bbox: {
               "ne": {
-                "lat": parseFloat(viewParam[0]),
-                "lng": parseFloat(viewParam[1])
+                "lat": parseFloat(unsafe_viewParam[0]),
+                "lng": parseFloat(unsafe_viewParam[1])
               },
               "sw": {
-                "lat": parseFloat(viewParam[2]),
-                "lng": parseFloat(viewParam[3])
+                "lat": parseFloat(unsafe_viewParam[2]),
+                "lng": parseFloat(unsafe_viewParam[3])
               }
             }
           };
       } else {// Assume points if the user did not specify latLng. Also allow for the omission of 'pts' param for backwards compatibility
-        if ((viewParam.indexOf("pts") == -1 && viewParam.length == 3) || viewParam.length == 4)
+        if ((unsafe_viewParam.indexOf("pts") == -1 && unsafe_viewParam.length == 3) || unsafe_viewParam.length == 4)
           view = {
             center: {
-              "x": parseFloat(viewParam[0]),
-              "y": parseFloat(viewParam[1])
+              "x": parseFloat(unsafe_viewParam[0]),
+              "y": parseFloat(unsafe_viewParam[1])
             },
-            "zoom": parseFloat(viewParam[2])
+            "zoom": parseFloat(unsafe_viewParam[2])
           };
-        else if ((viewParam.indexOf("pts") == -1 && viewParam.length == 4) || viewParam.length == 5)
+        else if ((unsafe_viewParam.indexOf("pts") == -1 && unsafe_viewParam.length == 4) || unsafe_viewParam.length == 5)
           view = {
             bbox: {
-              "xmin": parseFloat(viewParam[0]),
-              "xmax": parseFloat(viewParam[1]),
-              "ymin": parseFloat(viewParam[2]),
-              "ymax": parseFloat(viewParam[3])
+              "xmin": parseFloat(unsafe_viewParam[0]),
+              "xmax": parseFloat(unsafe_viewParam[1]),
+              "ymin": parseFloat(unsafe_viewParam[2]),
+              "ymax": parseFloat(unsafe_viewParam[3])
             }
           };
       }
@@ -1323,9 +1304,8 @@ if (!window['$']) {
     };
 
     var _getMinScale = function() {
-      return _homeView().scale * 0.5;
+      return panoView.scale * 0.5;
     };
-
     this.getMinScale = _getMinScale;
 
     var _getMaxScale = function() {
@@ -1334,17 +1314,7 @@ if (!window['$']) {
       else
         return 2;
     };
-
     this.getMaxScale = _getMaxScale;
-
-    this.getDefaultScale = function() {
-      return _homeView().scale;
-    };
-
-    this.updateDimensions = function(newViewportWidth, newViewportHeight) {
-      viewportWidth = newViewportWidth;
-      viewportHeight = newViewportHeight;
-    };
 
     var _viewScaleToZoomSlider = function(value) {
       var tmpValue = Math.sqrt((value - _getMinScale()) / (_getMaxScale() - _getMinScale()));
@@ -1369,39 +1339,121 @@ if (!window['$']) {
 
     var _fullScreen = function(state) {
       // TODO: Real full screen
-      console.log("Fullscreen unimplemented.");
     };
     this.fullScreen = _fullScreen;
 
-    var fitVideoToViewport = function(newViewportWidth, newViewportHeight) {
-      if (newViewportHeight == undefined)
-        newViewportHeight = viewportHeight;
-      if (newViewportWidth == undefined)
-        newViewportWidth = viewportWidth;
+    var initializeUI = function() {
+      var $timeMachineDiv = $("#" + timeMachineDivId);
+      var $viewerDiv = $("#" + viewerDivId);
+
+      var originalVideoWidth = datasetJSON["video_width"] - datasetJSON["tile_width"];
+      var originalVideoHeight = datasetJSON["video_height"] - datasetJSON["tile_height"];
+
+      var viewerBottomPx = 0;
+      if (editorEnabled)
+        viewerBottomPx = 210;
+      else {
+        if (presentationSliderEnabled)
+          viewerBottomPx = 100;
+      }
+
+      if ($timeMachineDiv.css("position") == "static") {
+        $timeMachineDiv.css({
+          "position": "absolute",
+          "top": "0px",
+          "left": "0px",
+          "width": originalVideoWidth + "px",
+          "height": (originalVideoHeight + viewerBottomPx) + "px"
+        });
+      }
+
+      $viewerDiv.css({
+        "position": "absolute",
+        "top": "0px",
+        "left": "0px",
+        "right": "0px",
+        "bottom": viewerBottomPx + "px",
+        "width": "auto",
+        "height": "auto"
+      });
+
+      resizeViewer();
+
+      window.onresize = function() {
+        if (viewportWidth == $viewerDiv.width() && viewportHeight == $viewerDiv.height())
+          return;
+        resizeViewer();
+        // TODO implement a resize listener and put this in the snaplapseViewer class
+        if (snaplapse)
+          snaplapse.getSnaplapseViewer().resizeUI();
+        // TODO implement a resize listener and put this in the snaplapseViewer class
+        if (snaplapseForPresentationSlider)
+          snaplapseForPresentationSlider.getSnaplapseViewer().resizeUI();
+        // TODO implement a resize listener and put this in the scaleBar class
+        if (scaleBar)
+          scaleBar.updateCachedVideoSize();
+        // TODO implement a resize listener and put this in the visualizer class
+        if (visualizer && defaultUI)
+          visualizer.setMode(defaultUI.getMode(), false);
+        // TODO implement a resize listener and put this in the annotator class
+        if (annotator)
+          annotator.resizeUI();
+        updateLocationContextUI();
+      };
+    };
+
+    var setInitialView = function() {
+      if (initialView) {
+        view = initialView;
+      } else if (loadSharedViewFromUnsafeURL(UTIL.getUnsafeHashString())) {
+        // loadSharedViewFromUnsafeURL() sets our view (if valid) and returns a boolean
+      } else if (!loadTimelapseWithPreviousViewAndTime) {
+        view = null;
+      }
+    };
+
+    var resizeViewer = function() {
+      var $viewerDiv = $("#" + viewerDivId);
+
+      viewportWidth = $viewerDiv.width();
+      viewportHeight = $viewerDiv.height();
+
       var originalVideoStretchRatio = videoStretchRatio;
       var originalVideoWidth = datasetJSON["video_width"] - datasetJSON["tile_width"];
       var originalVideoHeight = datasetJSON["video_height"] - datasetJSON["tile_height"];
+
       // If the video is too small, we need to stretch the video to fit the viewport,
       // so users don't see black bars around the viewport
-      videoStretchRatio = Math.max(newViewportWidth / originalVideoWidth, newViewportHeight / originalVideoHeight);
+      videoStretchRatio = Math.max(viewportWidth / originalVideoWidth, viewportHeight / originalVideoHeight);
       levelThreshold = defaultLevelThreshold - log2(videoStretchRatio);
       scaleRatio = videoStretchRatio / originalVideoStretchRatio;
-      setViewportSize(newViewportWidth, newViewportHeight);
-      readVideoDivSize();
+
+      // Update canvas size
+      $(canvas).attr({
+        width: viewportWidth,
+        height: viewportHeight
+      });
+      $(blackFrameDetectionCanvas).attr({
+        width: viewportWidth,
+        height: viewportHeight
+      });
+
       // Stretching the video affects the home view,
-      // so set home view to undefined so that it gets recomputed
-      homeView = undefined;
-      _homeView();
-      // Set parameters
+      // set home view to undefined so that it gets recomputed
+      computeHomeView();
+
+      if (!didFirstTimeOnLoad)
+        setInitialView();
+
+      // Set to the correct view
       if (view) {
         view.scale *= scaleRatio;
       } else {
         // If it is the first time that we call this function, set the view to home view
-        view = $.extend({}, _homeView());
+        view = $.extend({}, homeView);
       }
       _warpTo(view);
     };
-    this.fitVideoToViewport = fitVideoToViewport;
 
     var _computeMotion = function(start, end, timeRatio) {
       var s0 = start.xmax - start.xmin;
@@ -1434,41 +1486,47 @@ if (!window['$']) {
 
     // Handle any hash variables related to time machines
     var handleHashChange = function() {
-      var unsafeHashObj = UTIL.getUnsafeHashVars();
-      var newView = getViewFromHash(unsafeHashObj);
-      var newTime = getTimeFromHash(unsafeHashObj);
-      var tourJSON = getTourFromHash(unsafeHashObj);
-      var presentationJSON = getPresentationFromHash(unsafeHashObj);
-      var modisLock = getModisLockFromHash(unsafeHashObj);
-      if (newView || newTime || tourJSON || presentationJSON || modisLock) {
-        if (newView)
-          _setNewView(newView, true);
-        if (newTime)
-          _seek(newTime);
-        if (snaplapseForSharedTour && tourJSON) {
-          var snaplapseViewerForSharedTour = snaplapseForSharedTour.getSnaplapseViewer();
-          if (snaplapseViewerForSharedTour) {
-            snaplapseViewerForSharedTour.loadNewSnaplapse(tourJSON);
-            UTIL.addGoogleAnalyticEvent('window', 'onHashChange', 'url-load-tour');
-          }
-        }
-        if (snaplapseForPresentationSlider && presentationJSON) {
-          var snaplapseViewerForPresentationSlider = snaplapseForPresentationSlider.getSnaplapseViewer();
-          if ( typeof snaplapse == "undefined") {
-            // Prevent the editor leave page alert from showing if only the presentation mode is enabled from the hash
-            $(window).off("beforeunload", handleLeavePageWithEditor);
-          }
-          if (snaplapseViewerForPresentationSlider) {
-            snaplapseViewerForPresentationSlider.loadNewSnaplapse(presentationJSON);
-            UTIL.addGoogleAnalyticEvent('window', 'onHashChange', 'url-load-presentation');
-          }
-        }
-        if (datasetType == "modis" && modisLock == "month")
-          $("#noLock").click();
-        return true;
-      } else
-        return false;
+      var unsafeHashString = UTIL.getUnsafeHashString();
+
+      // Share views
+      loadSharedViewFromUnsafeURL(unsafeHashString);
+      // Tours and presentations
+      loadSharedDataFromUnsafeURL(unsafeHashString);
     };
+
+    var loadSharedViewFromUnsafeURL = function(unsafe_fullURL) {
+      var unsafe_matchURL = unsafe_fullURL.match(/#(.+)/);
+      if (unsafe_matchURL) {
+        var unsafeHashObj = UTIL.unpackVars(unsafe_matchURL[1]);
+        var newView = getViewFromHash(unsafeHashObj);
+        var newTime = getTimeFromHash(unsafeHashObj);
+
+        // If the current URL happens to include a hash with a share link, but a new dataset
+        // is being loaded with the current view/time preserved (which is mostly likely
+        // different from the shared view) then move on.
+        if (loadTimelapseWithPreviousViewAndTime)
+          return;
+
+        if (newView) {
+          if (didFirstTimeOnLoad) {
+            _setNewView(newView, true);
+          } else {
+            view = _normalizeView(newView);
+          }
+        }
+        if (newTime && typeof desiredInitialDate == "undefined") {
+          if (didFirstTimeOnLoad) {
+            _seek(newTime);
+          } else {
+            initialTime = newTime;
+          }
+        }
+        return true;
+      } else {
+        return false;
+      }
+    };
+    this.loadSharedViewFromUnsafeURL = loadSharedViewFromUnsafeURL;
 
     // Gets safe view values (Object) from an unsafe object containing key-value pairs from the URL hash.
     var getViewFromHash = function(unsafeHashObj) {
@@ -1489,22 +1547,13 @@ if (!window['$']) {
       return null;
     };
 
-    // Gets a safe MODIS month lock value (String) from an unsafe object containing key-value pairs from the URL hash.
-    var getModisLockFromHash = function(unsafeHashObj) {
-      if (unsafeHashObj && unsafeHashObj.l) {
-        var newMonthLock = String(unsafeHashObj.l);
-        return newMonthLock;
-      }
-      return null;
-    };
-
     // Gets safe tour JSON from an unsafe object containing key-value pairs from the URL hash.
     // The JSON returned is safe because calls to urlStringToJSON go to carefully-designed methods that use strict encoders
     // (and naming conventions to mark strings not strictly sanitized) to ensure the input is safe.
     var getTourFromHash = function(unsafeHashObj) {
       if (unsafeHashObj && unsafeHashObj.tour) {
-        if (snaplapse) {
-          var tourJSON = snaplapse.urlStringToJSON(unsafeHashObj.tour);
+        if (snaplapseForSharedTour) {
+          var tourJSON = snaplapseForSharedTour.urlStringToJSON(unsafeHashObj.tour);
           return tourJSON;
         }
       }
@@ -1853,7 +1902,7 @@ if (!window['$']) {
       return {
         x: theView.center.x,
         y: theView.center.y,
-        scale: Math.pow(2, theView.zoom) * _homeView().scale
+        scale: Math.pow(2, theView.zoom) * panoView.scale
       };
     };
     this.pixelCenterViewToPixelCenter = pixelCenterViewToPixelCenter;
@@ -1870,7 +1919,7 @@ if (!window['$']) {
       return {
         x: point.x,
         y: point.y,
-        scale: Math.pow(2, theView.zoom) * _homeView().scale
+        scale: Math.pow(2, theView.zoom) * panoView.scale
       };
     };
     this.latLngCenterViewToPixelCenter = latLngCenterViewToPixelCenter;
@@ -2018,8 +2067,6 @@ if (!window['$']) {
       metadata = data;
       timelapseDurationInSeconds = (frames - 0.7) / data['fps'];
 
-      readVideoDivSize();
-
       if (loadTimelapseWithPreviousViewAndTime && captureTimes.length > 0 && captureTimes[timelapseCurrentCaptureTimeIndex].length >= 11) {
         var captureTimeStamp = captureTimes[timelapseCurrentCaptureTimeIndex].substring(11);
         previousCaptureTime = new Date("2000/01/01 " + captureTimeStamp).toTimeString().substr(0, 5);
@@ -2035,11 +2082,6 @@ if (!window['$']) {
           captureTimes.push("--");
         }
       }
-    };
-
-    var readVideoDivSize = function() {
-      viewportWidth = $(videoDiv).width();
-      viewportHeight = $(videoDiv).height();
     };
 
     var refresh = function() {
@@ -2069,130 +2111,71 @@ if (!window['$']) {
     };
     this.getCurrentFrameNumber = getCurrentFrameNumber;
 
-    // Initialize the tag info with location data
-    var initializeTagInfo_locationData = function() {
-      var boundingBox = pixelCenterToPixelBoundingBoxView(homeView).bbox;
-      tagInfo_locationData.homeView.xmin = boundingBox.xmin;
-      tagInfo_locationData.homeView.ymin = boundingBox.ymin;
-      tagInfo_locationData.homeView.scale = homeView.scale;
-      if (visualizer) {
-        var navigationMap = visualizer.getNavigationMap();
-        var navigationMapWidth = $(navigationMap).width();
-        tagInfo_locationData.scale_map_nav = navigationMapWidth / (boundingBox.xmax - boundingBox.xmin);
-      }
-    };
-
-    // Update tag information of location data
-    // TODO(yenchiah): This seems to be run several times (~6) when the time machine object is first created.
-    // Another bug is that the position of the pano video on the context map is incorrect.
-    // This seems to happens when the aspect ratio of the viewport and the context map are not the same.
-    var updateTagInfo_locationData = function() {
+    // Update the scale bar and the context map
+    // Need to call this when changing the view
+    var updateLocationContextUI = function() {
       if (!defaultUI)
         return null;
-      var mode = defaultUI.getMode();
-      if (scaleBar == undefined && smallGoogleMap == undefined) {
-        if (fullScreen || mode == "player") {
-          return null;
-        }
-      }
+      if (scaleBar == undefined && smallGoogleMap == undefined && defaultUI.getMode() == "player")
+        return null;
       if (visualizer || smallGoogleMap || scaleBar) {
         // Need to get the projection dynamically when the viewer size changes
         var videoViewer_projection;
         if (tmJSON['projection-bounds'])
           videoViewer_projection = _getProjection();
-        // Get video viewer center location
 
         if (isHyperwall && !masterView)
           masterView = thisObj.getView();
 
-        var scale = isHyperwall ? masterView.scale : view.scale;
         var desiredView = isHyperwall ? masterView : view;
 
-        var videoViewer_centerPoint = {
-          "x": desiredView.x,
-          "y": desiredView.y,
-          "scale": scale
-        };
-        var tagLatLngCenter_nav;
+        var latlngCenter;
         if (videoViewer_projection) {
-          tagLatLngCenter_nav = videoViewer_projection.pointToLatlng(videoViewer_centerPoint);
-          tagInfo_locationData.tagLatLngCenter_nav.lat = tagLatLngCenter_nav.lat;
-          tagInfo_locationData.tagLatLngCenter_nav.lng = tagLatLngCenter_nav.lng;
+          latlngCenter = videoViewer_projection.pointToLatlng(desiredView);
         }
-        if (scaleBar) {
-          // Compute the the distance between two center pixels
-          var videoViewer_nearCenterPoint = {
-            "x": (desiredView.x + 1 / scale),
-            "y": desiredView.y,
-            "scale": scale
-          };
-          var tagLatLngNearCenter_nav, distance_pixel_lng;
-          if (videoViewer_projection) {
-            tagLatLngNearCenter_nav = videoViewer_projection.pointToLatlng(videoViewer_nearCenterPoint);
-            distance_pixel_lng = Math.abs(tagLatLngCenter_nav.lng - tagLatLngNearCenter_nav.lng);
-            tagInfo_locationData.distance_pixel_lng = distance_pixel_lng;
-            scaleBar.setScaleBar(distance_pixel_lng, tagLatLngCenter_nav);
-          }
+        // Update the scale bar
+        if (scaleBar && videoViewer_projection) {
+          scaleBar.setScaleBar(desiredView, latlngCenter);
         }
+        // Update context maps
         if (visualizer || smallGoogleMap) {
-          // Get the location bound of the video viewer
-          var bbox = pixelCenterToPixelBoundingBoxView(desiredView).bbox;
-          var videoViewer_leftTopPoint = {
-            "x": bbox.xmin,
-            "y": bbox.ymin
-          };
-          var videoViewer_rightBotPoint = {
-            "x": bbox.xmax,
-            "y": bbox.ymax
-          };
-          var tagLatLngNE_nav, tagLatLngSW_nav;
-          if (videoViewer_projection) {
-            tagLatLngNE_nav = videoViewer_projection.pointToLatlng(videoViewer_leftTopPoint);
-            tagLatLngSW_nav = videoViewer_projection.pointToLatlng(videoViewer_rightBotPoint);
-            tagInfo_locationData.tagLatLngNE_nav.lat = tagLatLngNE_nav.lat;
-            tagInfo_locationData.tagLatLngNE_nav.lng = tagLatLngNE_nav.lng;
-            tagInfo_locationData.tagLatLngSW_nav.lat = tagLatLngSW_nav.lat;
-            tagInfo_locationData.tagLatLngSW_nav.lng = tagLatLngSW_nav.lng;
-          }
-          // Update the small google map
-          if (smallGoogleMap && enableSmallGoogleMap == true) {
-            smallGoogleMap.setSmallGoogleMap(tagLatLngCenter_nav, videoViewer_centerPoint.scale);
-            smallGoogleMap.setSmallMapBoxLocation(tagLatLngNE_nav, tagLatLngSW_nav);
+          var desiredBound = pixelCenterToPixelBoundingBoxView(desiredView).bbox;
+          if (videoViewer_projection && smallGoogleMap && enableSmallGoogleMap == true) {
+            smallGoogleMap.setMap(desiredBound, latlngCenter);
           }
           if (visualizer) {
-            // Calculate the position on the navigation map
-            var contextMapPointInfo = boundingBoxToContextMapPointInfo(bbox);
-            tagInfo_locationData.tagPointNE_nav = contextMapPointInfo.p_NE;
-            tagInfo_locationData.tagPointSW_nav = contextMapPointInfo.p_SW;
-            tagInfo_locationData.tagPointCenter_nav = viewPointToContextMapPoint(view);
-            tagInfo_locationData.tagPointRadius_nav = contextMapPointInfo.radius;
-            visualizer.updateInterface_locationData(tagInfo_locationData);
-          }// End of if (visualizer)
+            visualizer.setMap(desiredBound);
+          }
         }// End of if (visualizer || smallGoogleMap)
-      }// End of if (visualizer != undefined || smallGoogleMap != undefined || scaleBar != undefined)
+      }// End of if (visualizer || smallGoogleMap || scaleBar)
     };
-    this.updateTagInfo_locationData = updateTagInfo_locationData;
+    this.updateLocationContextUI = updateLocationContextUI;
 
     var loadSharedDataFromUnsafeURL = function(unsafe_fullURL, playOnLoad) {
       var unsafe_matchURL = unsafe_fullURL.match(/#(.+)/);
       if (unsafe_matchURL) {
         var unsafe_sharedVars = UTIL.unpackVars(unsafe_matchURL[1]);
+        // Can be a tour or a presentation slider
         var unsafe_sharedData;
         var snaplapseForSharedData;
         // Find if shared data exists in the URL
         if (unsafe_sharedVars.tour && snaplapseForSharedTour) {
           unsafe_sharedData = unsafe_sharedVars.tour;
           snaplapseForSharedData = snaplapseForSharedTour;
+          UTIL.addGoogleAnalyticEvent('window', 'onHashChange', 'url-load-tour');
         } else if (unsafe_sharedVars.presentation && snaplapseForPresentationSlider) {
           unsafe_sharedData = unsafe_sharedVars.presentation;
           snaplapseForSharedData = snaplapseForPresentationSlider;
+          UTIL.addGoogleAnalyticEvent('window', 'onHashChange', 'url-load-presentation');
         }
         // Handle the shared data
         if (unsafe_sharedData) {
           var snaplapseViewerForSharedData = snaplapseForSharedData.getSnaplapseViewer();
           if (snaplapseViewerForSharedData) {
+            // Sanitize and parse data
             var sharedData = snaplapseForSharedData.urlStringToJSON(unsafe_sharedData);
             if (sharedData) {
+              // Tours
               if (playOnLoad && unsafe_sharedVars.tour) {
                 var onLoad = function() {
                   snaplapseViewerForSharedData.removeEventListener('snaplapse-loaded', onLoad);
@@ -2202,75 +2185,14 @@ if (!window['$']) {
                 };
                 snaplapseViewerForSharedData.addEventListener('snaplapse-loaded', onLoad);
               }
+              // Load the tour or presentation slider, depending upon what is contained in sharedData.
               snaplapseViewerForSharedData.loadNewSnaplapse(sharedData, playOnLoad);
-            } // end of if (sharedData)
-          }// end of if (snaplapseViewerForSharedData)
-        }// end of if (unsafe_sharedData)
-      }// end of if (unsafe_matchURL)
+            }
+          }
+        }
+      }
     };
     this.loadSharedDataFromUnsafeURL = loadSharedDataFromUnsafeURL;
-
-    var viewPointToContextMapPoint = function(viewPoint) {
-      return {
-        x: (viewPoint.x - tagInfo_locationData.homeView.xmin) * tagInfo_locationData.scale_map_nav,
-        y: (viewPoint.y - tagInfo_locationData.homeView.ymin) * tagInfo_locationData.scale_map_nav
-      };
-    };
-    this.viewPointToContextMapPoint = viewPointToContextMapPoint;
-
-    var boundingBoxToContextMapPointInfo = function(bbox) {
-      var p_NE = viewPointToContextMapPoint({
-        "x": bbox.xmin,
-        "y": bbox.ymin
-      });
-      var p_SW = viewPointToContextMapPoint({
-        "x": bbox.xmax,
-        "y": bbox.ymax
-      });
-      var radius = 4.7667 * Math.log(Math.abs(p_NE.x - p_SW.x) + Math.abs(p_NE.y - p_SW.y)) - 16.525;
-      if (radius < 2)
-        radius = 2;
-      return {
-        p_NE: p_NE,
-        p_SW: p_SW,
-        radius: radius
-      };
-    };
-    this.boundingBoxToContextMapPointInfo = boundingBoxToContextMapPointInfo;
-
-    // Select tag color
-    var getTagColor = function() {
-      // TODO: change color?
-      return [255, 0, 0, 0];
-    };
-    this.getTagColor = getTagColor;
-
-    // Get the location bound of the viewer
-    var getViewerLocationBound = function() {
-      var viewer = document.getElementById(videoDivId);
-      var viewerProjection = _getProjection();
-      var leftTopPoint = $.extend({}, view);
-      var rightBotPoint = $.extend({}, view);
-      leftTopPoint.x -= (viewer.offsetWidth / 2) / view.scale;
-      leftTopPoint.y -= (viewer.offsetHeight / 2) / view.scale;
-      var leftTopLatLng = viewerProjection.pointToLatlng(leftTopPoint);
-      rightBotPoint.x += (viewer.offsetWidth / 2) / view.scale;
-      rightBotPoint.y += (viewer.offsetHeight / 2) / view.scale;
-      var rightBotLatLng = viewerProjection.pointToLatlng(rightBotPoint);
-      return {
-        "leftTopLatLng": leftTopLatLng,
-        "rightBotLatLng": rightBotLatLng
-      };
-    };
-    this.getViewerLocationBound = getViewerLocationBound;
-
-    // Get the center of the view
-    var getViewerLocationCenter = function() {
-      var viewerProjection = _getProjection();
-      var centerLatLng = viewerProjection.pointToLatlng(thisObj.getView());
-      return centerLatLng;
-    };
-    this.getViewerLocationCenter = getViewerLocationCenter;
 
     var needFirstAncestor = function(tileidx) {
       //UTIL.log("need ancestor for " + dumpTileidx(tileidx));
@@ -2507,10 +2429,11 @@ if (!window['$']) {
       });
 
       _addViewChangeListener(function() {
+        // TODO: move to the annotator
         if (annotator)
           annotator.updateAnnotationPositions();
         if (!isHyperwall)
-          updateTagInfo_locationData();
+          updateLocationContextUI();
       });
 
       _addVideoPauseListener(function() {
@@ -2586,57 +2509,79 @@ if (!window['$']) {
       });
 
       _makeVideoVisibleListener(function(videoId) {
+        // This is the first video of the dataset being displayed
         if (videoId == firstVideoId) {
-          if (!didFirstTimeOnLoad)
-            didHashChangeFirstTimeOnLoad = handleHashChange();
-
-          // Hash params override the view set during initialization
-          if (!didHashChangeFirstTimeOnLoad) {
-            // Set the initial view
-            if (initialView) {
-              _setNewView(initialView, true);
+          // If the user requested the same point spatial and temporal point in the previous dataset, calculate and seek there.
+          if (loadTimelapseWithPreviousViewAndTime) {
+            var closestFrame = findExactOrClosestCaptureTime(previousCaptureTime);
+            seekToFrame(closestFrame);
+            timelapseCurrentTimeInSeconds = closestFrame / _getFps();
+          } else {
+            if (desiredInitialDate) {
+              initialTime = findExactOrClosestCaptureTime(desiredInitialDate.toTimeString().substr(0, 5)) / _getFps();
             }
-            // Seek to the initial time
-            if (initialTime != 0) {
+            if (initialTime == 0) {
+              timelapseCurrentTimeInSeconds = 0;
+              // Fixes Safari/IE bug which causes the video to not be displayed if the video has no leader and the initial
+              // time is zero (the video seeked event is never fired, so videoset never gets the cue that the video
+              // should be displayed).  The fix is to simply seek half a frame in.  Yeah, the video won't be starting at
+              // *zero*, but the displayed frame will still be the right one, so...good enough.  :-)
+              if (videoset.getLeader() <= 0 && (isSafari || isIE)) {
+                var halfOfAFrame = 1 / _getFps() / 2;
+                _seek(halfOfAFrame);
+              }
+            } else {
+              timelapseCurrentTimeInSeconds = initialTime;
               _seek(initialTime);
             }
           }
-          // Set to false if we ever load a new timelapse at a later time
-          // We do not want to parse anything in the hash in this case.
-          didHashChangeFirstTimeOnLoad = false;
 
-          if (!didFirstTimeOnLoad) {
+          if (didFirstTimeOnLoad) {
+            timelapseCurrentCaptureTimeIndex = Math.min(frames - 1, Math.floor(timelapseCurrentTimeInSeconds * _getFps()));
+            // Recreate timeline slider.
+            // There seems to be an issue with the jQuery UI slider widget, since just changing the max value and refreshing
+            // the slider does not proplerly update the available range. So we have to manually recreate it...
+            var $timeSlider = $("#" + viewerDivId + " .timelineSlider");
+            $timeSlider.slider("destroy");
+            defaultUI.createTimelineSlider();
+            $timeSlider.slider("option", "value", timelapseCurrentCaptureTimeIndex);
+          } else {
+            loadSharedDataFromUnsafeURL(UTIL.getUnsafeHashString());
             didFirstTimeOnLoad = true;
             // Fire onTimeMachinePlayerReady the first time the page is loaded.
             if ( typeof (settings["onTimeMachinePlayerReady"]) === "function") {
-              settings["onTimeMachinePlayerReady"](viewerDivId);
+              settings["onTimeMachinePlayerReady"](timeMachineDivId);
             }
           }
 
-          updateTagInfo_locationData();
+          hideSpinner(viewerDivId);
+          if ( typeof onNewTimelapseLoadCompleteCallBack === "function")
+            onNewTimelapseLoadCompleteCallBack();
         }
       });
 
-      if (settings["composerDiv"]) {
+      snaplapseForSharedTour = new org.gigapan.timelapse.Snaplapse(thisObj, settings, "noUI");
+
+      if (editorEnabled) {
         $("#" + videoDivId).append('<div class="snaplapse-annotation-description"><div></div></div>');
-        snaplapse = new org.gigapan.timelapse.Snaplapse(settings["composerDiv"], thisObj, settings);
-        snaplapseForSharedTour = new org.gigapan.timelapse.Snaplapse(undefined, thisObj, settings, "noUI");
+        snaplapse = new org.gigapan.timelapse.Snaplapse(thisObj, settings);
 
         // TODO:
-        // Disabled because of odd behavior in Chrome. Causes an endless 'waiting for socket' error to appear
+        // Disabled by default because of odd behavior in Chrome. Causes an endless 'waiting for socket' error to appear
         // if too many tabs/windows are open with Time Machines loaded. The behavior is a bit similar to the Chrome
         // cache bug in the sense that once you close a window, one that was stuck will start to work.
         // Visualizer loads a top level video to be used as a context map in the editor. It seeks when the main video also seeks.
         // Most likely that is at the heart of the problem.
         //
         // Timewarp visualizer that shows the location of the current view and transitions between keyframes
-        //if (!tmJSON['projection-bounds'] && editorEnabled)
-        //  visualizer = new org.gigapan.timelapse.Visualizer(thisObj, snaplapse, visualizerGeometry);
+        if (enableContextMapOnDefaultUI && !tmJSON['projection-bounds'])
+          visualizer = new org.gigapan.timelapse.Visualizer(thisObj, snaplapse, visualizerGeometry);
       }
-      if (settings["presentationSliderDiv"])
-        snaplapseForPresentationSlider = new org.gigapan.timelapse.Snaplapse(settings["presentationSliderDiv"], thisObj, settings, "presentation");
-      if (settings["annotatorDiv"])
-        annotator = new org.gigapan.timelapse.Annotator(settings["annotatorDiv"], thisObj);
+
+      if (presentationSliderEnabled)
+        snaplapseForPresentationSlider = new org.gigapan.timelapse.Snaplapse(thisObj, settings, "presentation");
+      if (annotatorEnabled)
+        annotator = new org.gigapan.timelapse.Annotator(thisObj);
 
       defaultUI = new org.gigapan.timelapse.DefaultUI(thisObj, settings);
       if (useCustomUI)
@@ -2660,77 +2605,54 @@ if (!window['$']) {
 
       thisObj.setPlaybackRate(playbackSpeed);
 
-      // Fixes Safari bug which causes the video to not be displayed if the video has no leader and the initial
-      // time is zero (the video seeked event is never fired, so videoset never gets the cue that the video
-      // should be displayed).  The fix is to simply seek half a frame in.  Yeah, the video won't be starting at
-      // *zero*, but the displayed frame will still be the right one, so...good enough.  :-)
-      if (videoset.getLeader() <= 0 && (isSafari || isIE)) {
-        var halfOfAFrame = 1 / _getFps() / 2;
-        _seek(halfOfAFrame);
-      }
-
       setupUIHandlers();
       setupSliderHandlers(viewerDivId);
+
+      // The UI is now ready and we can display it
+      $("#" + viewerDivId).css("visibility", "visible");
     }
 
-    var computeViewportGeometry = function(data) {
-      if (viewportGeometry.max == false) {
-        if (viewportGeometry.width == undefined)
-          viewportGeometry.width = data["video_width"] - data["tile_width"];
-        if (viewportGeometry.height == undefined)
-          viewportGeometry.height = data["video_height"] - data["tile_height"];
-        if (visualizerGeometry.height == undefined)
-          visualizerGeometry.height = viewportGeometry.height / 4.3;
-        if (visualizerGeometry.width == undefined)
-          visualizerGeometry.width = viewportGeometry.width / 4.3;
-        if (viewportGeometry.height < minViewportHeight) {
-          viewportGeometry.height = minViewportHeight;
-          visualizerGeometry.height = visualizerGeometry.height;
-          visualizerGeometry.width = visualizerGeometry.height * (data["video_width"] / data["video_height"]);
-        }
-        if (viewportGeometry.width < minViewportWidth)
-          viewportGeometry.width = minViewportWidth;
-      } else {
-        $("#" + viewerDivId).css({
-          "position": "absolute",
-          "top": "0px",
-          "left": "0px"
-        });
-        $("body").css("overflow", "hidden");
-        if (settings['annotatorDiv'])
-          $("#" + settings['annotatorDiv']).hide();
-      }
-
-      return {
-        width: viewportGeometry.width,
-        height: viewportGeometry.height
-      };
-    };
 
     this.switchLayer = function(layerNum) {
       var newIndex = layerNum * tmJSON["sizes"].length;
       datasetLayer = layerNum;
       loadTimelapseWithPreviousViewAndTime = true;
-      doNotResetViewerSize = true;
       validateAndSetDatasetIndex(newIndex);
       loadTimelapseCallback(tmJSON);
     };
 
-    var loadTimelapse = function(url, desiredView, desiredTime, preserveCurrentViewAndTime) {
+    var loadTimelapse = function(url, desiredView, desiredTime, preserveCurrentViewAndTime, desiredDate, onLoadCompleteCallBack) {
       showSpinner(viewerDivId);
+
       settings["url"] = url;
       // Add trailing slash to url if it was omitted
       if (settings["url"].charAt(settings["url"].length - 1) != "/")
         settings["url"] += "/";
+
+      // If the user specifies a starting view, use it.
       if (desiredView && typeof (desiredView) === "object") {
         initialView = desiredView;
-        settings["initialView"] = desiredView;
+      } else {
+        initialView = null;
       }
+      settings["initialView"] = initialView;
+
+      // If the user specifies a starting time, use it.
       if (desiredTime && typeof (desiredTime) === "number") {
         initialTime = desiredTime;
-        settings["initialTime"] = desiredTime;
+        settings["initialTime"] = initialTime;
+      } else {
+        initialTime = 0;
       }
+
+      // Set the initial desired date (Date object)
+      desiredInitialDate = desiredDate;
+
+      // Set the call back
+      onNewTimelapseLoadCompleteCallBack = onLoadCompleteCallBack;
+
       loadTimelapseWithPreviousViewAndTime = !!preserveCurrentViewAndTime;
+
       // We are loading a new timelapse and in order for code that should only be run when the
       // first video of a timelapse is displayed, we need to reset the firstVideoId to the next
       // id that the videoset class will use. See _makeVideoVisibleListener() where we check for
@@ -2738,6 +2660,7 @@ if (!window['$']) {
       if (didFirstTimeOnLoad) {
         firstVideoId = videoDivId + "_" + (videoset.getCurrentVideoId() + 1);
       }
+
       UTIL.ajax("json", settings["url"], "tm.json" + getMetadataCacheBreaker(), loadTimelapseCallback);
     };
     this.loadTimelapse = loadTimelapse;
@@ -2755,7 +2678,7 @@ if (!window['$']) {
     };
 
     // Assumes dates are being used as capture times.
-    function findExactOrClosestCaptureTime(timeToFind) {
+    var findExactOrClosestCaptureTime = function(timeToFind) {
       var low = 0, high = captureTimes.length - 1, i, comparison;
       while (low <= high) {
         i = Math.floor((low + high) / 2);
@@ -2775,13 +2698,10 @@ if (!window['$']) {
       }
       return i;
     };
+    this.findExactOrClosestCaptureTime = findExactOrClosestCaptureTime;
 
     var loadVideoSetCallback = function(data) {
       datasetJSON = data;
-
-      homeView = null;
-      if (!loadTimelapseWithPreviousViewAndTime)
-        view = null;
 
       // Reset currentIdx so that we'll load in the new tile with the different resolution.  We don't null the
       // currentVideo here because 1) it will be assigned in the refresh() method when it compares the bestIdx
@@ -2789,66 +2709,48 @@ if (!window['$']) {
       // track of what video replaced it.
       currentIdx = null;
       onPanoLoadSuccessCallback(data, null, true);
-      var newViewportGeometry = computeViewportGeometry(data);
 
-      if (!doNotResetViewerSize)
-        fitVideoToViewport(newViewportGeometry.width, newViewportGeometry.height);
-      else {
+      // We've already loaded the UI, so just do new dataset specific setup.
+      if (didFirstTimeOnLoad) {
+        setInitialView();
+        // Discard the custom home view setting if the user is not preserving the previous current view for the new dataset
+        if (!loadTimelapseWithPreviousViewAndTime)
+          settings["newHomeView"] = undefined;
+        // Reset home view
+        computeHomeView();
+        if (!view)
+          view = $.extend({}, homeView);
         _warpTo(view);
-        doNotResetViewerSize = false;
-      }
-
-      // The UI is ready now and we can display it
-      $("#" + viewerDivId).css("visibility", "visible");
-
-      // Setup the UI if this is the first time we are loading a videoset. Else recreate the time slider for the new set,
-      // since it still depends upon values from the old set.
-      if (!defaultUI)
+      } else {
+        initializeUI();
         setupTimelapse();
-      else {
-        timelapseCurrentCaptureTimeIndex = Math.min(frames - 1, Math.floor(thisObj.getCurrentTime() * _getFps()));
-        var $timeSlider = $("#" + viewerDivId + " .timelineSlider");
-        $timeSlider.slider("destroy");
-        defaultUI.createTimelineSlider();
-        if (loadTimelapseWithPreviousViewAndTime) {
-          var closestFrame = findExactOrClosestCaptureTime(previousCaptureTime);
-          seekToFrame(closestFrame);
-          // Sometimes the time change event is not fired (though it should have since the video did seek)
-          // So we manually update the UI.
-          $timeSlider.slider("option", "value", closestFrame);
-        } else {
-          // Seek to the beginning, even if we are already there to ensure that variables keeping track of time
-          // are properly set for the newly loaded timelapse.
-          _seek(0);
-        }
       }
 
       if (visualizer) {
         topLevelVideo.src = getTileidxUrl(0);
         topLevelVideo.geometry = tileidxGeometry(0);
         leader = videoset.getLeader();
-        initializeTagInfo_locationData();
-        visualizer.loadNavigationMap(tagInfo_locationData);
+        visualizer.loadContextMap();
         panoVideo = visualizer.clonePanoVideo(topLevelVideo);
       }
-
-      hideSpinner(viewerDivId);
     };
 
     function loadPlayerControlsTemplate(html) {
-      var viewerDiv = document.getElementById(viewerDivId);
+      // Add player_template.html to the DOM
+      $("#" + timeMachineDivId).html(html);
+      var $viewerDiv = $("#" + viewerDivId);
 
       // Hide the UI because it is not ready yet
-      $(viewerDiv).css("visibility", "hidden");
+      $viewerDiv.css("visibility", "hidden");
 
-      $(viewerDiv).html(html);
       var tmp = document.getElementById("{REPLACE}");
-      $(tmp).attr("id", viewerDivId + "_timelapse");
+      $(tmp).attr("id", timeMachineDivId + "_timelapse");
       videoDivId = $(tmp).attr("id");
       videoDiv = document.getElementById(videoDivId);
       firstVideoId = videoDivId + "_1";
 
-      $(viewerDiv).attr('unselectable', 'on').css({
+      // Prevent the UI from being selected by the user.
+      $viewerDiv.attr('unselectable', 'on').css({
         '-moz-user-select': 'none',
         '-o-user-select': 'none',
         '-khtml-user-select': 'none',
@@ -2857,34 +2759,31 @@ if (!window['$']) {
         'user-select': 'none'
       });
 
+      // TODO: Check that this hasn't bitrotted.
       dataPanesId = tmp.id + "_dataPanes";
       $("#" + videoDivId).append("<div id=" + dataPanesId + "></div>");
 
       if (viewerType == "canvas") {
         canvas = document.createElement('canvas');
         canvas.id = videoDivId + "_canvas";
-        canvasContext = canvas.getContext('2d');
         videoDiv.appendChild(canvas);
-        canvasTmp = document.createElement('canvas');
-        canvasTmp.id = videoDivId + "_canvas_tmp";
-        canvasTmp.style.display = "none";
-        canvasTmpContext = canvasTmp.getContext('2d');
+        blackFrameDetectionCanvas = document.createElement('canvas');
+        blackFrameDetectionCanvas.id = videoDivId + "_canvas_blackFrameDetection";
+        blackFrameDetectionCanvas.style.display = "none";
         if (blackFrameDetection)
-          videoDiv.appendChild(canvasTmp);
-        videoset = new org.gigapan.timelapse.Videoset(viewerDivId, videoDivId, thisObj, canvas.id, canvasTmp.id);
+          videoDiv.appendChild(blackFrameDetectionCanvas);
+        videoset = new org.gigapan.timelapse.Videoset(viewerDivId, videoDivId, thisObj, canvas.id, blackFrameDetectionCanvas.id);
       } else if (viewerType == "video") {
         videoset = new org.gigapan.timelapse.Videoset(viewerDivId, videoDivId, thisObj);
       }
 
-      //videosetStats = new org.gigapan.timelapse.VideosetStats(videoset, settings["videosetStatsDivId"]);
-
+      // Setup viewport event handlers.
       videoDiv['onmousedown'] = handleMousedownEvent;
       videoDiv['ondblclick'] = handleDoubleClickEvent;
 
       $(videoDiv).mousewheel(thisObj.handleMousescrollEvent);
 
-      $(viewerDiv).on("click", function() {
-        $(document).off('keydown.tm_keydown keyup.tm_keyup');
+      $viewerDiv.one("click", function() {
         $(document).on("keydown.tm_keydown", handleKeydownEvent);
         $(document).on("keyup.tm_keyup", handleKeyupEvent);
       });
@@ -2901,7 +2800,7 @@ if (!window['$']) {
       // which in any browser will reslove relative paths correctly. We choose the latter to keep the message console clean.
       $('<style type="text/css">.closedHand {cursor: url("' + rootAppURL + 'css/cursors/closedhand.cur"), move !important;} .openHand {cursor: url("' + rootAppURL + 'css/cursors/openhand.cur"), move !important;} .tiledContentHolder {cursor: url("' + rootAppURL + 'css/cursors/openhand.cur"), move;}</style>').appendTo($('head'));
 
-      loadTimelapse(settings["url"]);
+      loadTimelapse(settings["url"], settings["initialView"], settings["initialTime"]);
     }
 
     function setupSliderHandlers(viewerDivId) {
@@ -2936,53 +2835,6 @@ if (!window['$']) {
       }
     }
 
-    function setViewportSize(newWidth, newHeight) {
-      thisObj.updateDimensions(newWidth, newHeight);
-
-      // Viewport
-      $("#" + videoDivId).css({
-        "width": newWidth + "px",
-        "height": newHeight + "px"
-      });
-      $(canvas).attr({
-        width: newWidth,
-        height: newHeight
-      });
-      $(canvasTmp).attr({
-        width: newWidth,
-        height: newHeight
-      });
-
-      // Annotation stage (kineticjs)
-      var annotator = thisObj.getAnnotator();
-      if (annotator) {
-        var annotationStage = annotator.getAnnotationStage();
-        if (annotationStage) {
-          var annotationLayer = annotator.getAnnotationLayer();
-          annotationStage.setSize(newWidth, newHeight);
-          annotationLayer.draw();
-        }
-      }
-
-      // Spinner
-      var spinnerCenterHeight = newHeight / 2 - $("#" + viewerDivId + " .spinner").height() / 2;
-      var spinnerCenterWidth = newWidth / 2 - $("#" + viewerDivId + " .spinner").width() / 2;
-
-      // Controls
-      $("#" + viewerDivId + " .controls").width(newWidth);
-
-      $("#" + viewerDivId + " .spinnerOverlay").css({
-        "top": spinnerCenterHeight + "px",
-        "left": spinnerCenterWidth + "px"
-      });
-
-      // Extra 2px for the borders
-      $("#" + viewerDivId + " .instructions").css({
-        "width": newWidth + 2 + "px",
-        "height": newHeight + 2 + "px"
-      });
-    }
-
     var showSpinner = function(viewerDivId) {
       UTIL.log("showSpinner");
       $("#" + viewerDivId + " .spinnerOverlay").show();
@@ -2999,29 +2851,26 @@ if (!window['$']) {
     //
     // Constructor code
     //
-    browserSupported = UTIL.browserSupported();
+
+    browserSupported = UTIL.browserSupported(settings["mediaType"]);
 
     if (!browserSupported) {
-      UTIL.ajax("html", rootAppURL, "browser_not_supported_template.html", function(html) {
-        $("#" + viewerDivId).html(html);
-        $("#browser_not_supported").show();
+      UTIL.ajax("html", rootAppURL, "templates/browser_not_supported_template.html", function(html) {
+        $("#" + timeMachineDivId).html(html);
       });
       return;
     }
 
-    if (mediaType == null) {
-      mediaType = UTIL.getMediaType();
-    } else {
-      UTIL.setMediaType(mediaType);
-    }
+    mediaType = UTIL.getMediaType();
 
     if (settings["viewerType"])
       UTIL.setViewerType(settings["viewerType"]);
+
     viewerType = UTIL.getViewerType();
-    targetView = {};
 
     // Set default loop dwell time
-    // TODO: this should be set to not just for andsat, but for all short datasets
+    // TODO: This should probably be set not just for landsat, but for all short datasets.
+    // TODO: This should probably move to the setup function.
     if (datasetType == "landsat" && loopDwell == undefined) {
       loopDwell = {
         "startDwell": defaultLoopDwellTime,
@@ -3032,6 +2881,6 @@ if (!window['$']) {
     }
 
     UTIL.log('Timelapse("' + settings["url"] + '")');
-    UTIL.ajax("html", rootAppURL, "player_template.html", loadPlayerControlsTemplate);
+    UTIL.ajax("html", rootAppURL, "templates/player_template.html", loadPlayerControlsTemplate);
   };
 })();

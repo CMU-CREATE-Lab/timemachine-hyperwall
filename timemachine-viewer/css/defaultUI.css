@@ -7,6 +7,10 @@ body, html {
   background: transparent;
 }
 
+.ui-dialog {
+  box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+}
+
 .createLabLogo {
   width: 170px;
   height: 28px;
@@ -31,11 +35,6 @@ body, html {
   -ms-transform: scale(0.647);
   -webkit-transform: scale(0.647);
   transform: scale(0.647);
-}
-
-#player1_timelapse_canvas {
-  background: black;
-  z-index: 5;
 }
 
 .ui-dialog {
@@ -68,15 +67,16 @@ body, html {
 }
 
 .tiledContentHolder {
-  position: relative;
-  width: 816px;
-  height: 288px;
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  bottom: 1px;
+  right: 1px;
+  border: 1px solid #656565;
+  width: auto;
+  height: auto;
   background: black;
   overflow: hidden;
-  border-right: 1px solid #656565;
-  border-left: 1px solid #656565;
-  border-top: 1px solid #656565;
-  border-bottom: 1px solid #656565;
 }
 
 .ui-button .ui-icon.ui-icon-custom-stop {
@@ -122,11 +122,28 @@ body, html {
   outline: 0;
 }
 
-.viewerModeBtn {
+.annotatorToggle {
+  bottom: 118px;
+}
+
+.annotatorToggle .ui-button-text {
+  margin-top: -1px;
+  margin-left: -3px;
+}
+
+.editorToggle {
+  bottom: 86px;
+}
+
+.editorToggle .ui-button-text {
+  margin-top: -1px;
+  margin-left: 0px;
+}
+
+.toggleBtn {
   position: absolute;
   width: 58px;
   height: 18px;
-  bottom: 86px;
   right: 20px;
   background: white;
   border: 1px solid #656565;
@@ -139,22 +156,17 @@ body, html {
   font-size: 11px;
 }
 
-.viewerModeBtn .ui-icon {
+.toggleBtn .ui-icon {
   margin-left: -2px;
 }
 
-.viewerModeBtn .ui-button-text {
-  margin-top: -1px;
-  margin-left: 0px;
-}
-
-.viewerModeBtn.ui-state-active {
+.toggleBtn.ui-state-active {
   border: 1px solid #ffffff;
   background: rgba(0,0,0,0.6);
   color: white;
 }
 
-.viewerModeBtn.ui-state-active .ui-icon {
+.toggleBtn.ui-state-active .ui-icon {
   background-image: url(../images/ui-icons_custom_256x240.png);
 }
 
@@ -213,7 +225,10 @@ body, html {
   position: absolute;
   top: 0px;
   left: 0px;
-  margin: auto;
+  bottom: 0px;
+  right: 0px;
+  width: auto;
+  height: auto;
   z-index: 999;
   display: none;
 }
@@ -442,7 +457,8 @@ body, html {
   position: absolute;
   left: 0px;
   bottom: 0px;
-  width: 100%;
+  right: 0px;
+  width: auto;
   height: 60px;
   overflow: visible;
 }
@@ -457,8 +473,10 @@ body, html {
   background-image: url(../images/loading.gif);
   width: 32px;
   height: 32px;
-  top: 0px;
-  left: 0px;
+  top: 50%;
+  left: 50%;
+  margin-left: -16px;
+  margin-top: -16px;
   position: absolute;
   display: none;
   z-index: 10;
