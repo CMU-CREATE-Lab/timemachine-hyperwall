@@ -80,7 +80,6 @@ function viewsync_init() {
     });
 
     timelapse.addVideoPlayListener(function() {
-      console.log('master play');
       viewsync.emit('play', {
         play: true
       });
@@ -88,7 +87,6 @@ function viewsync_init() {
     });
 
     timelapse.addVideoPauseListener(function() {
-      console.log('master pause');
       viewsync.emit('play', {
         play: false
       });
@@ -118,7 +116,6 @@ function viewsync_init() {
     });
 
     viewsync.on('sync play', function(data) {
-      console.log('sync play: ' + data.play);
       if (data.play)
         timelapse.play();
       else

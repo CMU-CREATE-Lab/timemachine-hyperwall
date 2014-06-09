@@ -96,6 +96,10 @@ var controller = io.of('/controller').on('connection', function(socket) {
   bounce(socket, 'handlePlayPauseController', 'controller');
   bounce(socket, 'setControllerPlayButton', 'controller');
   bounce(socket, 'setMode', 'controller');
+  bounce(socket, 'updateTimelineSliderController', 'controller');
+  bounce(socket, 'seekToFrame', 'controller');
+  bounce(socket, 'updateSpeedControlController', 'controller');
+  bounce(socket, 'setPlaybackRate', 'controller');
 });
 
 //

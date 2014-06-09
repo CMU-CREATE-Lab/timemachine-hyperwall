@@ -25,6 +25,12 @@ if (fields.master) {
         return;
       controlReciever.emit('handlePlayPauseController', false);
     });
+    timelapse.addTimeChangeListener(function() {
+      controlReciever.emit('updateTimelineSliderController', timelapse.getCurrentFrameNumber());
+    });
+    timelapse.addPlaybackRateChangeListener(function(playbackRate) {
+      controlReciever.emit('updateSpeedControlController', playbackRate);
+    });
   });
 
   controlReciever.on('sync setControllerPlayButton', function() {
@@ -97,5 +103,15 @@ if (fields.master) {
     if (timelapse.isDoingLoopingDwell())
       controlReciever.emit('handlePlayPauseController', false);
     timelapse.handlePlayPause();
+  });
+
+  controlReciever.on('sync seekToFrame', function(desiredFrameNumber) {
+    var currentFrameNumber = timelapse.getCurrentFrameNumber();
+    if (desiredFrameNumber != currentFrameNumber)
+      timelapse.seekToFrame(desiredFrameNumber);
+  });
+
+  controlReciever.on('sync setPlaybackRate', function(desiredPlaybackRate) {
+    timelapse.setPlaybackRate(desiredPlaybackRate);
   });
 }

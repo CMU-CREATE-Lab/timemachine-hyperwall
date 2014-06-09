@@ -42,7 +42,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.drawable.Drawable;
 import android.location.Address;
 import android.location.Geocoder;
 import android.os.Bundle;
@@ -97,7 +96,6 @@ public class ControllerActivity extends FragmentActivity {
 
     // Controller variables
     private SharedPreferences prefs = null;
-    public ImageButton playPause;
     private ImageButton drag;
     public static WebView locationSlider;
     private FrameLayout locationSliderContainer;
@@ -106,9 +104,7 @@ public class ControllerActivity extends FragmentActivity {
     public static Boolean isEditorEnabled = false;
     private float locationSliderHeight;
     private float originLocationSliderContainerY;
-    private float originPlayPauseButtonY;
     private float dragYDiffBetweenFingerAndSliderTop;
-    private float dragYDiffBetweenFingerAndPlayPauseTop;
     private float maxLocationSliderContainerY;
     private float minLocationSliderContainerY;
     private float midLocationSliderContainerY;
@@ -433,9 +429,9 @@ public class ControllerActivity extends FragmentActivity {
             }
             @Override
             public void on(String event, IOAcknowledge ack, Object... args) {
-               if(event.equals("sync handlePlayPauseController")) {
-            	   handlePlayPauseUI((Boolean) args[0]);
-               }
+               //if(event.equals("sync someEvent")) {
+            	   // do something
+               //}
             }
         });
     }
@@ -451,7 +447,6 @@ public class ControllerActivity extends FragmentActivity {
 		             public void run() {
 		             	locationSliderHeight = locationSlider.getHeight();
 		             	originLocationSliderContainerY = locationSliderContainer.getY();
-		             	originPlayPauseButtonY = playPause.getY();
 		             	minLocationSliderContainerY = originLocationSliderContainerY;
 		             	maxLocationSliderContainerY = originLocationSliderContainerY + locationSliderHeight;
 		             	midLocationSliderContainerY = (minLocationSliderContainerY + maxLocationSliderContainerY) / 2;
@@ -481,7 +476,6 @@ public class ControllerActivity extends FragmentActivity {
         		// safe because images are loaded after JavaScript when a HTML page loads.
         		if(url.contains("thumbnail") && isMasterConnected == false) {
         			drag.setVisibility(View.VISIBLE);
-        			playPause.setVisibility(View.VISIBLE);
         			loadPreferences();
         			isMasterConnected = true;
         		}
@@ -510,16 +504,6 @@ public class ControllerActivity extends FragmentActivity {
 		WebSettings webSettings = locationSlider.getSettings();
 		webSettings.setJavaScriptEnabled(true);
 
-		// Set the play-pause button
-    	playPause = (ImageButton) findViewById(R.id.playPauseButton);
-    	playPause.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				socket.emit("handlePlayPauseServer");
-			}
-		});
-    	socket.emit("setControllerPlayButton");
-
     	// Set the drag button
     	drag = (ImageButton) findViewById(R.id.drag);
     	drag.setOnTouchListener(new View.OnTouchListener() {
@@ -527,15 +511,12 @@ public class ControllerActivity extends FragmentActivity {
 			public boolean onTouch(View v, MotionEvent event) {
 				if(event.getAction() == MotionEvent.ACTION_DOWN) {
 					dragYDiffBetweenFingerAndSliderTop = locationSliderContainer.getY() - event.getRawY();
-					dragYDiffBetweenFingerAndPlayPauseTop = playPause.getY() - event.getRawY();
 				}
 				if(event.getAction() == MotionEvent.ACTION_MOVE) {
 					// Move the slider based on current finger location
 					float newSliderY = event.getRawY() + dragYDiffBetweenFingerAndSliderTop;
-					float newPlayPauseY = event.getRawY() + dragYDiffBetweenFingerAndPlayPauseTop;
 					if(newSliderY > minLocationSliderContainerY && newSliderY < maxLocationSliderContainerY) {
 						locationSliderContainer.setY(newSliderY);
-						playPause.setY(newPlayPauseY);
 					}
 				}
 				if(event.getAction() == MotionEvent.ACTION_UP) {
@@ -573,18 +554,17 @@ public class ControllerActivity extends FragmentActivity {
     private void slideDown() {
 		System.out.println("Slide down");
 		isSliderHidden = true;
-		slideTo(maxLocationSliderContainerY, originPlayPauseButtonY + locationSliderHeight);
+		slideTo(maxLocationSliderContainerY);
     }
 
     private void slideUp() {
 		System.out.println("Slide up");
 		isSliderHidden = false;
-		slideTo(minLocationSliderContainerY, originPlayPauseButtonY);
+		slideTo(minLocationSliderContainerY);
     }
 
-    private void slideTo(float newSliderY, float newPlayPauseY) {
+    private void slideTo(float newSliderY) {
     	locationSliderContainer.animate().y(newSliderY).setDuration(250);
-    	playPause.animate().y(newPlayPauseY).setDuration(250);
     }
 
     private void loadPreferences() {
@@ -702,24 +682,6 @@ public class ControllerActivity extends FragmentActivity {
                 }
             });
     	}
-    }
-
-    @JavascriptInterface
-    public void handlePlayPauseUI (final Boolean isPlayingTimeMachine) {
-    	// When you need to modify a UI element, do so on the UI thread.
-        runOnUiThread(new Runnable() {
-            public void run() {
-	    		// Switch the button
-	    		if(!isPlayingTimeMachine) {
-	    			Drawable playImage = getResources().getDrawable(R.drawable.play);
-	    			playPause.setImageDrawable(playImage);
-	    		}
-	        	else {
-	        		Drawable pauseImage = getResources().getDrawable(R.drawable.pause);
-	        		playPause.setImageDrawable(pauseImage);
-	        	}
-            }
-       });
     }
 
     @JavascriptInterface

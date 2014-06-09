@@ -13,6 +13,148 @@
     <script src="timemachine-viewer/js/jquery/plugins/touchPunch/jquery.ui.touch-punch.min.js" type="text/javascript"></script>
 
     <style type="text/css">
+      .customToggleSpeed.ui-button {
+        position: absolute;
+        width: 55px;
+        height: 23px;
+        top: 45px;
+        left: 65px;
+        background: white;
+        border: 1px solid #656565;
+        border-radius: 3px !important;
+        box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+        z-index: 9;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 8pt;
+        color: #656565;
+        display: none;
+        -webkit-tap-highlight-color: rgba(0,0,0,0.5);
+      }
+      .customToggleSpeed .ui-button-text {
+        text-align: center;
+        padding: 0px;
+        padding-top: 3px;
+      }
+      .timeTickClickRegion {
+        outline: 0;
+      }
+      .currentTimeTick {
+        position: absolute;
+        border: 1px solid #656565;
+        background-color: white;
+        box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+        border-radius: 2px;
+        z-index: 5;
+      }
+      .timeTickClickRegion {
+        position: absolute;
+        border: 0px;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 6;
+        -webkit-tap-highlight-color: rgba(0,0,0,0);
+      }
+      .timeTick {
+        margin: 0px auto;
+        border: 1px solid #656565;
+        background-color: white;
+        opacity: 1;
+        box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+        border-radius: 2px;
+      }
+      .timeTickContainer {
+        position: absolute;
+        border: 0px;
+      }
+      .customTimeline {
+        position: absolute;
+        height: inherit;
+        margin-top: 15px;
+        width: auto;
+      }
+      .timeTextLeft {
+        position: absolute;
+        font-size: 10pt;
+        text-shadow: -1px 0 #656565, 0 1px #656565, 1px 0 #656565, 0 -1px #656565, 2px 2px 3px rgba(0,0,0,0.3);
+        font-family: Arial, Helvetica, sans-serif;
+        text-align: center;
+        color: white;
+        font-weight: normal;
+        cursor: default;
+      }
+      .timeTextRight {
+        position: absolute;
+        font-size: 10pt;
+        text-shadow: -1px 0 #656565, 0 1px #656565, 1px 0 #656565, 0 -1px #656565, 2px 2px 3px rgba(0,0,0,0.3);
+        font-family: Arial, Helvetica, sans-serif;
+        text-align: center;
+        color: white;
+        font-weight: normal;
+        cursor: default;
+      }
+      .timeText {
+        position: absolute;
+        top: 15px;
+        left: 31px;
+        width: 60px;
+        height: 21px;
+        font-size: 16pt;
+        box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+        font-family: Arial, Helvetica, sans-serif;
+        padding-top: 4px;
+        padding-bottom: 6px;
+        padding-left: 37px;
+        padding-right: 0px;
+        color: #656565;
+        font-weight: normal;
+        background-color: white;
+        border: 1px solid #656565;
+        z-index: 9;
+        border-radius: 3px;
+        cursor: default;
+        text-align: left;
+      }
+      .customPlay.ui-button {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        top: 6px;
+        left: 10px;
+        background: white;
+        border: 1px solid #656565;
+        border-radius: 35px !important;
+        box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+        z-index: 10;
+        outline: none;
+        -webkit-tap-highlight-color: rgba(0,0,0,0);
+      }
+      .ui-button .ui-icon.ui-icon-custom-play {
+        background-image: url(timemachine-viewer/images/buttons/custom_play.png);
+        margin-top: -12px;
+        margin-left: -7px;
+        width: 18px;
+        height: 24px;
+        opacity: 1;
+      }
+      .ui-button .ui-icon.ui-icon-custom-pause {
+        background-image: url(timemachine-viewer/images/buttons/custom_pause.png);
+        margin-top: -12px;
+        margin-left: -11px;
+        width: 24px;
+        height: 24px;
+        opacity: 1;
+      }
+      #customControl {
+        background-color: rgba(255,255,255,0);
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -o-user-select: none;
+        user-select: none;
+        position: relative;
+        height: 70px;
+      }
       .ui-loader {
         display: none;
       }
@@ -21,6 +163,7 @@
       }
       .editor {
         float: left;
+        position: relative;
         background-color: transparent;
         width: 154px;
         height: 133px;
@@ -31,7 +174,7 @@
         position: absolute;
         left: 1px;
       }
-      .ui-button {
+      .editor .ui-button {
         top: 2px;
         line-height: 80px;
         height: 80px;
@@ -50,7 +193,7 @@
         user-select: none;
         -webkit-tap-highlight-color: rgba(0,0,0,0.5);
       }
-      .ui-button-text {
+      .editor .ui-button-text {
         font-family: Arial, Helvetica, sans-serif;
         padding: 0 !important;
         border-radius: 0px !important;
@@ -186,13 +329,38 @@
       var originalPageX;
       var locationServiceID_exploratorium = "6220332415320064";
       var locationServiceID_test = "5634387206995968";
-      var currentLocationServiceID = locationServiceID_exploratorium;
+      var currentLocationServiceID = locationServiceID_test;
 
       // DOM elements
       var $toursSliderContainer;
       var $toursSlider;
       var $editor;
       var $editTitle;
+
+      // Custom control variables
+      var captureTimes = ["1984", "1985", "1986", "1987", "1988", "1989", "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012"];
+      var yearDictionary = {};
+      var frameDictionary = [];
+      var timeTickX = [];
+      var firstYear;
+      var endYear;
+      var isPlaying = false;
+      var originalIsPlaying = false;
+      var $customControl;
+      var $customPlay;
+      var $customTimeline;
+      var $timeText;
+      var $timeTextLeft;
+      var $timeTextRight;
+      var $currentTimeTick;
+      var currentTimeTick_width = 10;
+      var currentTimeTick_height = 31;
+      var timeTick_width = 2;
+      var timeTick_height = 15;
+      var numYears;
+      var timeTickSpan;
+      var customControl_offset;
+      var sliderWidth;
 
       // Touch event config
       $.event.special.tap.tapholdThreshold = 750;
@@ -206,7 +374,7 @@
       // These three values below are stored on the Android tablet, but for debugging purposes on the Desktop
       // we still need default values to pull from. Thus changing these values *will not have an affect* if
       // you are using the tablet. Instead, change the values in the settings menu there on the tablet.
-      var doAutoMode = true;
+      var doAutoMode = false;
       var screenIdleTime = 90000;
       var autoModeDelayTime = 25000;
 
@@ -361,13 +529,9 @@
         var distanceBetweenElementAndLeftEdge = elementOffset.left + elementWidth - containerOffset.left;
         var distanceBetweenElementAndRightEdge = containerWidth - elementOffset.left + containerOffset.left;
         if (distanceBetweenElementAndRightEdge < elementWidth * 1.5) {
-          $toursSliderContainer.animate({
-            scrollLeft: $toursSliderContainer.scrollLeft() + (elementWidth * 1.5 - distanceBetweenElementAndRightEdge)
-          }, 200);
+          $toursSliderContainer.scrollLeft($toursSliderContainer.scrollLeft() + (elementWidth * 1.5 - distanceBetweenElementAndRightEdge));
         } else if (distanceBetweenElementAndLeftEdge < elementWidth * 1.5) {
-          $toursSliderContainer.animate({
-            scrollLeft: $toursSliderContainer.scrollLeft() - (elementWidth * 1.5 - distanceBetweenElementAndLeftEdge)
-          }, 200);
+          $toursSliderContainer.scrollLeft($toursSliderContainer.scrollLeft() - (elementWidth * 1.5 - distanceBetweenElementAndLeftEdge));
         }
       };
 
@@ -603,6 +767,286 @@
         });
       };
 
+      var createSpeedControl = function() {
+        // Toggle speed
+        $fastSpeed = $('<button class="customToggleSpeed" title="Toggle playback speed">Fast</button>');
+        $mediumSpeed = $('<button class="customToggleSpeed" title="Toggle playback speed">Medium</button>');
+        $slowSpeed = $('<button class="customToggleSpeed" title="Toggle playback speed">Slow</button>');
+
+        var speedOptions = [$slowSpeed, $fastSpeed, $mediumSpeed];
+
+        $customControl.prepend(speedOptions);
+
+        $fastSpeed.button({
+          text: true
+        }).click(function() {
+          controller.emit("setPlaybackRate", 0.5);
+          $customControl.prepend($mediumSpeed);
+          $mediumSpeed.show();
+          $fastSpeed.hide();
+        });
+
+        $mediumSpeed.button({
+          text: true
+        }).click(function() {
+          controller.emit("setPlaybackRate", 0.25);
+          $customControl.prepend($slowSpeed);
+          $slowSpeed.show();
+          $mediumSpeed.hide();
+        });
+
+        $slowSpeed.button({
+          text: true
+        }).click(function() {
+          controller.emit("setPlaybackRate", 1);
+          $customControl.prepend($fastSpeed);
+          $fastSpeed.show();
+          $slowSpeed.hide();
+        });
+
+        // Since the call to set the playback rate when first creating the timelapse
+        // happens before the UI is setup, we need to run it again below to properly
+        // update the UI.
+        //var playbackRate = timelapse.getPlaybackRate();
+        var playbackRate = 1;
+        if (playbackRate >= 1) {
+          $fastSpeed.show();
+        } else if (playbackRate < 1 && playbackRate >= 0.5) {
+          $mediumSpeed.show();
+        } else {
+          $slowSpeed.show();
+        }
+      };
+
+      var updateSpeedControl = function(playbackRate) {
+        if (playbackRate >= 1) {
+          $fastSpeed.show();
+          $mediumSpeed.hide();
+          $slowSpeed.hide();
+        } else if (playbackRate < 1 && playbackRate >= 0.5) {
+          $mediumSpeed.show();
+          $fastSpeed.hide();
+          $slowSpeed.hide();
+        } else {
+          $slowSpeed.show();
+          $mediumSpeed.hide();
+          $fastSpeed.hide();
+        }
+      };
+
+      var createCustomTimeline = function() {
+        customControl_offset = $customControl.offset();
+
+        // Create slider container
+        $timeText = $('<div class="timeText"></div>');
+        $customTimeline = $('<div class="customTimeline"></div>');
+        $customControl.append($timeText, $customTimeline);
+        var extraSliderLeftMargin = 40;
+        sliderLeftMargin = $customPlay.width() + $timeText.width() + extraSliderLeftMargin;
+        var extraSliderRightMargin = 20;
+        sliderRightMargin = extraSliderRightMargin;
+        $customTimeline.css({
+          "left": sliderLeftMargin + "px",
+          "right": sliderRightMargin + "px"
+        });
+
+        // Create left and right date text
+        $timeTextLeft = $('<div class="timeTextLeft"></div>');
+        $timeTextRight = $('<div class="timeTextRight"></div>');
+        $customTimeline.append($timeTextLeft, $timeTextRight);
+
+        // Create current time bar
+        $currentTimeTick = $('<div class="currentTimeTick"></div>');
+        $customTimeline.append($currentTimeTick);
+        $currentTimeTick.css({
+          "top": "0px",
+          "left": "0px",
+          "width": currentTimeTick_width + "px",
+          "height": currentTimeTick_height + "px",
+          "margin-left": (currentTimeTick_width / -2) + "px"
+        });
+
+        // Create time tick
+        // Calculate the space between time ticks
+        var numTicks = numYears;
+        timeTickSpan = 100 / numTicks;
+        var previousTargetFrameIdx = undefined;
+        var targetFrame, targetFrameX, previousTargetFrameX, invisibleSpan;
+        for (var i = 0; i < numYears; i++) {
+          targetFrame = yearDictionary[firstYear + i]["previousStackEndIdx"] + 1;
+          // Save the x position of every frame
+          frameDictionary[targetFrame]["x"] = timeTickSpan * (i + 0.5);
+          // Save the x position of every time tick
+          timeTickX[i] = timeTickSpan * (i + 0.5);
+          previousTargetFrameIdx = targetFrame;
+          var $timeTick = $('<div class="timeTick" id="customControl_customTimeline_timeTick_' + i + '"></div>');
+          var $timeTickContainer = $('<div class="timeTickContainer" id="customControl_customTimeline_timeTickContainer_' + i + '"></div>');
+          var $timeTickClickRegion = $('<div class="timeTickClickRegion" id="customControl_customTimeline_timeTickClickRegion_' + i + '"></div>');
+          $timeTickContainer.css({
+            "top": "0px",
+            "left": (timeTickSpan * i) + "%",
+            "width": timeTickSpan + "%",
+            "height": currentTimeTick_height + 28 + "px"
+          });
+          $timeTickClickRegion.css({
+            "top": "0px",
+            "left": "0px",
+            "width": "100%",
+            "height": "100%"
+          }).attr("tabindex", i);
+          $timeTick.css({
+            "margin-top": (timeTick_height / 2) + "px",
+            "width": timeTick_width + "px",
+            "height": timeTick_height + "px"
+          });
+          $timeTickContainer.on("vmousedown", handleTimeTickMousedown);
+          $timeTickContainer.append($timeTick, $timeTickClickRegion);
+          $customTimeline.append($timeTickContainer);
+        }
+        var firstFrameForFirstYear = frameDictionary[0];
+        $timeTextLeft.text(firstFrameForFirstYear["year"]).css({
+          "left": firstFrameForFirstYear["x"] + "%",
+          "top": currentTimeTick_height + 5 + "px",
+          "margin-left": ($timeTextLeft.width() / -2) + "px"
+        });
+        var firstFrameForEndYear = frameDictionary[yearDictionary[endYear]["previousStackEndIdx"] + 1];
+        $timeTextRight.text(firstFrameForEndYear["year"]).css({
+          "left": firstFrameForEndYear["x"] + "%",
+          "top": currentTimeTick_height + 5 + "px",
+          "margin-left": ($timeTextRight.width() / -2) + "px"
+        });
+        updateTimelineSlider(0);
+        sliderWidth = $customTimeline.width();
+      };
+
+      var handleTimeTickMousedown = function(event) {
+        originalIsPlaying = isPlaying;
+        if (originalIsPlaying)
+          controller.emit("handlePlayPauseServer");
+        var currentYearIdx = parseInt(this.id.split("_")[3]);
+        var currentYear = firstYear + currentYearIdx;
+        controller.emit("seekToFrame", yearDictionary[currentYear]["previousStackEndIdx"] + 1);
+        // Track mouse
+        $customTimeline.on("vmousemove", trackMouseAndSlide);
+        $(document).one("vmouseup", function(event) {
+          if (originalIsPlaying)
+            controller.emit("handlePlayPauseServer");
+          $customTimeline.off("vmousemove", trackMouseAndSlide);
+        });
+      };
+
+      var trackMouseAndSlide = function(event) {
+        // Touchmove event will not fire correctly without this line
+        event.preventDefault();
+
+        var nowXpx = event.pageX - customControl_offset.left - sliderLeftMargin;
+        var nowX = (nowXpx / sliderWidth) * 100;
+        var targetFrameIdx;
+        targetFrameIdx = computeSliderHandlePosition_landsat(nowX);
+        controller.emit("seekToFrame", targetFrameIdx);
+      };
+
+      var computeSliderHandlePosition_landsat = function(nowX) {
+        // Binary search
+        var minFrameIdx = 0;
+        var maxFrameIdx = frameDictionary.length - 1;
+        var targetFrameIdx;
+        while (minFrameIdx != maxFrameIdx) {
+          targetFrameIdx = Math.round((minFrameIdx + maxFrameIdx) / 2);
+          if (nowX <= frameDictionary[targetFrameIdx]["x"])
+            maxFrameIdx = targetFrameIdx;
+          else
+            minFrameIdx = targetFrameIdx;
+          if (maxFrameIdx == minFrameIdx + 1) {
+            if (frameDictionary[maxFrameIdx]["x"] - nowX <= nowX - frameDictionary[minFrameIdx]["x"])
+              targetFrameIdx = maxFrameIdx;
+            else
+              targetFrameIdx = minFrameIdx;
+            break;
+          }
+        }
+        return targetFrameIdx;
+      };
+
+      var updateTimelineSlider = function(frameIdx) {
+        if (frameIdx < 0 || frameIdx > numYears - 1)
+          return;
+        var currentYear = frameDictionary[frameIdx]["year"];
+        $currentTimeTick.css("left", frameDictionary[frameIdx]["x"] + "%");
+        $timeText.text(currentYear);
+      };
+
+      var createCustomControl = function() {
+        $customControl = $("#customControl");
+        // Play and stop button
+        $customControl.append('<button class="customPlay" title="Play"></button>');
+        $customPlay = $(".customPlay");
+        $customPlay.button({
+          icons: {
+            primary: "ui-icon-custom-play"
+          },
+          text: false
+        }).click(function() {
+          controller.emit("handlePlayPauseServer");
+        });
+
+        createCustomTimeline();
+        createSpeedControl();
+
+        window.onresize = function() {
+          sliderWidth = $customTimeline.width();
+        };
+
+        controller.on('sync handlePlayPauseController', handlePlayPauseUI);
+        controller.on('sync updateTimelineSliderController', updateTimelineSlider);
+        controller.on('sync updateSpeedControlController', updateSpeedControl);
+      };
+
+      var handlePlayPauseUI = function(desiredIsPlaying) {
+        isPlaying = desiredIsPlaying;
+        if (isPlaying) {
+          $customPlay.button({
+            icons: {
+              primary: "ui-icon-custom-pause"
+            }
+          });
+        } else {
+          $customPlay.button({
+            icons: {
+              primary: "ui-icon-custom-play"
+            }
+          });
+        }
+      };
+
+      var preProcessLandsat = function() {
+        for (var i = 0; i < captureTimes.length; i++) {
+          var year = parseInt(captureTimes[i]);
+          frameDictionary[i] = {
+            "x": undefined,
+            "year": year
+          };
+          if (firstYear == undefined)
+            firstYear = year;
+          if (i == captureTimes.length - 1)
+            endYear = year;
+          if (yearDictionary[year] == undefined) {
+            yearDictionary[year] = {
+              "numFramesThisYear": 0,
+              "currentStackEndIdx": -1,
+              "previousStackEndIdx": -1
+            };
+            if (yearDictionary[year - 1]) {
+              yearDictionary[year]["currentStackEndIdx"] = yearDictionary[year - 1]["currentStackEndIdx"];
+              yearDictionary[year]["previousStackEndIdx"] = yearDictionary[year - 1]["currentStackEndIdx"];
+            }
+          }
+          yearDictionary[year]["numFramesThisYear"]++;
+          yearDictionary[year]["currentStackEndIdx"]++;
+        }
+        numYears = captureTimes.length;
+      };
+
       function init() {
         controller = io.connect('/controller');
         controller.on('connect', function() {
@@ -625,12 +1069,15 @@
           setDoAutoMode(false);
         });
         readServerData();
+        preProcessLandsat();
+        createCustomControl();
       }
 
       $(init);
     </script>
   </head>
   <body>
+    <div id="customControl"></div>
     <div class="editor">
       <button type="button" class="add">Add</button>
       <div class="editTitle_txt">
