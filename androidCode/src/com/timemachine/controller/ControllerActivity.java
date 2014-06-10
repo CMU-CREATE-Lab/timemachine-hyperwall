@@ -445,10 +445,10 @@ public class ControllerActivity extends FragmentActivity {
 		     public void onGlobalLayout() {
 		         runOnUiThread(new Runnable() {
 		             public void run() {
-		             	locationSliderHeight = locationSlider.getHeight();
+		             	locationSliderHeight = locationSlider.getHeight() - 140;
 		             	originLocationSliderContainerY = locationSliderContainer.getY();
 		             	minLocationSliderContainerY = originLocationSliderContainerY;
-		             	maxLocationSliderContainerY = originLocationSliderContainerY + locationSliderHeight;
+		             	maxLocationSliderContainerY = originLocationSliderContainerY + locationSliderHeight - 140;
 		             	midLocationSliderContainerY = (minLocationSliderContainerY + maxLocationSliderContainerY) / 2;
 		             }
 		         });
