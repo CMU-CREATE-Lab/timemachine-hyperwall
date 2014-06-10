@@ -99,7 +99,7 @@ if (fields.master) {
     previousMapLng = mapLatLng.lng;
   });
 
-  controlReciever.on('sync handlePlayPauseServer', function(data) {
+  controlReciever.on('sync handlePlayPauseServer', function() {
     if (timelapse.isDoingLoopingDwell())
       controlReciever.emit('handlePlayPauseController', false);
     timelapse.handlePlayPause();

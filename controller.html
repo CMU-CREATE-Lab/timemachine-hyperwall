@@ -1002,8 +1002,8 @@
         controller.on('sync updateSpeedControlController', updateSpeedControl);
       };
 
-      var handlePlayPauseUI = function(desiredIsPlaying) {
-        isPlaying = desiredIsPlaying;
+      var handlePlayPauseUI = function(isTimeMachineNowPlaying) {
+        isPlaying = isTimeMachineNowPlaying;
         if (isPlaying) {
           $customPlay.button({
             icons: {
