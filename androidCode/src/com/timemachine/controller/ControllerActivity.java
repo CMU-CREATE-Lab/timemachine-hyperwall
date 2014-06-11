@@ -44,6 +44,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -436,6 +437,12 @@ public class ControllerActivity extends FragmentActivity {
         });
     }
 
+    public int convertDpToPx(int dp) {
+    	final float screenDensityScale = getResources().getDisplayMetrics().density;
+    	// Convert the dps to pixels, based on density scale
+    	return (int) (dp * screenDensityScale + 0.5f);
+    }
+
     private void setupUI() {
     	// Set layout listener
     	View controllerView = findViewById(R.id.controllerView);
@@ -445,15 +452,16 @@ public class ControllerActivity extends FragmentActivity {
 		     public void onGlobalLayout() {
 		         runOnUiThread(new Runnable() {
 		             public void run() {
-		             	locationSliderHeight = locationSlider.getHeight() - 140;
+		            	int timelineHeight = convertDpToPx(70);
+		             	locationSliderHeight = locationSlider.getHeight() - timelineHeight;
 		             	originLocationSliderContainerY = locationSliderContainer.getY();
 		             	minLocationSliderContainerY = originLocationSliderContainerY;
-		             	maxLocationSliderContainerY = originLocationSliderContainerY + locationSliderHeight - 140;
+		             	maxLocationSliderContainerY = originLocationSliderContainerY + locationSliderHeight - timelineHeight;
 		             	midLocationSliderContainerY = (minLocationSliderContainerY + maxLocationSliderContainerY) / 2;
+				     	//System.out.println("locationSliderHeight: " + locationSliderHeight);
+				     	//System.out.println("locationSliderContainerY: " + originLocationSliderContainerY);
 		             }
 		         });
-		     	System.out.println("locationSliderHeight: " + locationSliderHeight);
-		     	System.out.println("locationSliderContainerY: " + originLocationSliderContainerY);
 		     	locationSlider.getViewTreeObserver().removeOnGlobalLayoutListener(this);
 		     }
 		});
@@ -463,7 +471,14 @@ public class ControllerActivity extends FragmentActivity {
 		locationSlider = (WebView) findViewById(R.id.webview);
 		locationSliderContainer = (FrameLayout) findViewById(R.id.sliderContainer);
 		locationSlider.setBackgroundColor(Color.TRANSPARENT);
-		locationSlider.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
+
+		// Before Android 4.4, hardware acceleration causes the WebView to not render properly
+		if (Build.VERSION.SDK_INT >= 19){
+			locationSlider.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+		} else {
+			locationSlider.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+		}
+
 		locationSlider.setWebViewClient(new WebViewClient() {
         	public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
         		System.out.println("onReceivedError");
@@ -522,7 +537,6 @@ public class ControllerActivity extends FragmentActivity {
 				if(event.getAction() == MotionEvent.ACTION_UP) {
 					if(event.getEventTime() - event.getDownTime() <= tapTimeout) {
 						// Tap is detected, toggle the slider
-						System.out.println("onTap");
 			            runOnUiThread(new Runnable() {
 			                public void run() {
 			                	toggleSlider();
@@ -552,13 +566,13 @@ public class ControllerActivity extends FragmentActivity {
     }
 
     private void slideDown() {
-		System.out.println("Slide down");
+		//System.out.println("Slide down: " + maxLocationSliderContainerY);
 		isSliderHidden = true;
 		slideTo(maxLocationSliderContainerY);
     }
 
     private void slideUp() {
-		System.out.println("Slide up");
+		//System.out.println("Slide up: " + minLocationSliderContainerY);
 		isSliderHidden = false;
 		slideTo(minLocationSliderContainerY);
     }

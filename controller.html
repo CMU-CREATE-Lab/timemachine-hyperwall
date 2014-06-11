@@ -969,7 +969,6 @@
       };
 
       var updateTimelineSlider = function(frameIdx) {
-        debug(frameIdx);
         if (frameIdx < 0 || frameIdx > numYears - 1)
           return;
         var currentYear = frameDictionary[frameIdx]["year"];
@@ -1001,6 +1000,8 @@
         controller.on('sync handlePlayPauseController', handlePlayPauseUI);
         controller.on('sync updateTimelineSliderController', updateTimelineSlider);
         controller.on('sync updateSpeedControlController', updateSpeedControl);
+
+        controller.emit("setControllerPlayButton");
       };
 
       var handlePlayPauseUI = function(isTimeMachineNowPlaying) {
@@ -1089,6 +1090,6 @@
     <div class="toursSliderContainer">
       <div class="toursSlider"></div>
     </div>
-    <div id="debug">banana</div>
+    <div id="debug"></div>
   </body>
 </html>
