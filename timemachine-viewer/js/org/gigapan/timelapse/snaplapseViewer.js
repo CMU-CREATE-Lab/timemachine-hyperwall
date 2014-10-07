@@ -985,7 +985,8 @@ if (!org.gigapan.timelapse.snaplapse) {
             $sortable.css("opacity", "1");
           } else {
             // If users play tours from the viewer
-            if (timelapse.getSnaplapseForPresentationSlider().getKeyframes().length > 0)
+            var presentationSlider = timelapse.getSnaplapseForPresentationSlider();
+            if (presentationSlider && presentationSlider.getKeyframes().length > 0)
               $("#" + timeMachineDivId + " .presentationSlider").show();
             if (useCustomUI)
               $("#" + timeMachineDivId + " .composer").show();
@@ -1392,6 +1393,16 @@ if (!org.gigapan.timelapse.snaplapse) {
           var thisKeyframeId = $(this).parent().attr("id").split("_")[3];
           var thisKeyframe = snaplapse.getKeyframeById(thisKeyframeId);
           setKeyframeCaptionUI(thisKeyframe, this, true);
+        }).click(function() {
+          // Change the hash to the current slide
+          var slideId = $(this).attr("id");
+          if (window && (window.self !== window.top)) {
+            // If this is an iframe page
+            window.top.location.hash = "#slide=" + slideId;
+          } else {
+            // If this is a source page
+            window.location.hash = "#slide=" + slideId;
+          }
         });
       }
 

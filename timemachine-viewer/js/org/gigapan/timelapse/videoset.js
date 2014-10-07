@@ -136,6 +136,7 @@ if (!window['$']) {
     var isStatusLoggingEnabled = false;
     var activeVideos = {};
     var inactiveVideos = {};
+    var currentlyShownVideo = null;
     var playbackRate = 1;
     var id = 0;
     var fps = 25;
@@ -301,10 +302,6 @@ if (!window['$']) {
     //
 
     var _addVideo = function(src, geometry, video) {
-      // If the src is already added, do not add it again
-      if (Object.keys(activeVideoSrcList).indexOf(src) > -1){
-        return activeVideos[videoDiv.id + "_" + id];
-      }
       //perfAdded++;
       id++;
       // Note: Safari and Chrome already let you do this
@@ -325,9 +322,6 @@ if (!window['$']) {
       video.id = currentVideoId;
       video.active = true;
       video.ready = false;
-      if ( typeof videoBeingReplaced !== 'undefined' && videoBeingReplaced != null) {
-        video.idOfVideoBeingReplaced = videoBeingReplaced.id;
-      }
 
       // Add methods getCurrentTime() and setCurrentTime() to the video.  We MUST use these methods instead of accessing
       // the currentTime property directly so that we can abstract away the time offset calculations required for split
@@ -410,19 +404,10 @@ if (!window['$']) {
           target: video
         });
       }
+
+      _deleteUnneededVideos();
+
       if (isOperaLegacy) {
-        // Opera <= 12 seems to queue too many videos and then gets stuck in the stalling state.
-        // This ensures that we remove old videos that are no longer necessary, specifically
-        // *really* old ones that never got removed for some reason.
-        if (viewerType == "canvas") {
-          for (var videoId in activeVideos) {
-            var videoIdArray = videoId.split("_");
-            var videoIdNum = videoIdArray[videoIdArray.length - 1];
-            if (id - 2 > videoIdNum) {
-              _deleteVideo(activeVideos[videoDiv.id + "_" + videoIdNum]);
-            }
-          }
-        }
         // Videos in Opera <= 12 often seem to get stuck in a state of always seeking.
         // This will ensure that if we are stuck, we reload the video.
         video.addEventListener('seeking', videoSeeking, false);
@@ -437,28 +422,28 @@ if (!window['$']) {
       // just in case the issue still exists in Chrome. From some testing,
       // it is not clear whether the bug still exists in situations of
       // low bandwidth or high tile server load.
-      if (isChrome && (doChromeSeekableHack /*|| doChromeBufferedHack*/)) {
-        var check;
-        var timeout = 2000;
-        check = function() {
-          UTIL.log("check load for video(" + video.id + ")");
-          UTIL.log("readyState: " + video.readyState);
-          if ((video.seekable.length == 0 /*|| video.buffered.length == 0*/) && activeVideos[video.id] == video) {
-            // Ouch.  A brand new bug in Chrome 15 (apparently) causes videos to never load
-            // if they've been loaded recently and are being loaded again now.
-            // It's pretty weird, but this disgusting code seems to work around the problem.
-            //
-            // 20130509: Added seekable case as well, which seems to occur when Chrome tries
-            // to receive a video from a server under heavy load. Very strange.
-            UTIL.log("Chrome bug detected, adding cache buster");
-            video.setAttribute('src', src + "?time=" + (new Date().getTime()));
-            video.load();
-            if (advancing)
-              video.play();
-          }
-        };
-        setTimeout(check, timeout);
-      }
+      //if (isChrome && (doChromeSeekableHack /*|| doChromeBufferedHack*/)) {
+      //  var check;
+      //  var timeout = 2000;
+      //  check = function() {
+      //    UTIL.log("check load for video(" + video.id + ")");
+      //    UTIL.log("readyState: " + video.readyState);
+      //    if ((video.seekable.length == 0 /*|| video.buffered.length == 0*/) && activeVideos[video.id] == video) {
+      //      // Ouch.  A brand new bug in Chrome 15 (apparently) causes videos to never load
+      //      // if they've been loaded recently and are being loaded again now.
+      //      // It's pretty weird, but this disgusting code seems to work around the problem.
+      //      //
+      //      // 20130509: Added seekable case as well, which seems to occur when Chrome tries
+      //      // to receive a video from a server under heavy load. Very strange.
+      //      UTIL.log("Chrome seek bug detected, adding cache buster");
+      //      video.setAttribute('src', src + "?time=" + (new Date().getTime()));
+      //      video.load();
+      //      if (advancing)
+      //        video.play();
+      //    }
+      //  };
+      //  setTimeout(check, timeout);
+      //}
 
       publishVideoEvent(video.id, 'video-added', currentTime);
 
@@ -487,6 +472,33 @@ if (!window['$']) {
       return video;
     };
     this.addVideo = _addVideo;
+
+    var _idNumFromVideo = function(video) {
+      var videoIdArray = video.id.split("_");
+      return videoIdArray[videoIdArray.length - 1] - 0;
+    };
+
+    var _videoName = function(video) {
+      return 'video(' + _idNumFromVideo(video) + ')';
+    }
+    this.videoName = _videoName;
+
+    var _deleteUnneededVideos = function() {
+      var lastValidId = id - 1; // Delete any videos earlier than the one most recently requested
+
+      if (currentlyShownVideo) {
+        // Delete any videos earlier than currently shown video
+        lastValidId = Math.max(lastValidId, _idNumFromVideo(currentlyShownVideo));
+      }
+
+      for (var videoId in activeVideos) {
+        var video = activeVideos[videoId];
+        if (video != currentlyShownVideo && _idNumFromVideo(video) < lastValidId) {
+          _deleteVideo(video);
+        }
+      }
+    }
+    this.deleteUnneededVideos = _deleteUnneededVideos;
 
     var _repositionVideo = function(video, geometry) {
       //UTIL.log("video(" + video.id + ") reposition to left=" + geometry.left + ",top=" + geometry.top + ", w=" + geometry.width + ",h=" + geometry.height + "; ready="+video.ready);
@@ -997,6 +1009,8 @@ if (!window['$']) {
       }
 
       video.ready = true;
+      currentlyShownVideo = video;
+
       if (viewerType == "video") {
         video.style.left = parseFloat(video.style.left) + 100000 + "px";
       }
@@ -1009,25 +1023,13 @@ if (!window['$']) {
         drawToCanvas(video);
       }
 
+      // Delete all videos earlier than new visible video
+
       // Delete video which is being replaced, following the chain until we get to a null.  We do this in a timeout
       // to give the browser a chance to update the GUI so that it can render the new video positioned above.  This
       // (mostly) fixes the blanking problem we saw in Safari.
       var timeoutLength = (viewerType == "video") ? 5 : 0;
-      window.setTimeout(function() {
-        var videoToDelete = activeVideos[video.idOfVideoBeingReplaced];
-        var chainOfDeletes = "";
-        //var deletedVideoUrls = [];
-        while (videoToDelete) {
-          //deletedVideoUrls.push(videoToDelete.src);
-          var nextVideoToDelete = activeVideos[videoToDelete.idOfVideoBeingReplaced];
-          delete videoToDelete.idOfVideoBeingReplaced;
-          // Delete this to prevent multiple deletes
-          chainOfDeletes += videoToDelete.id + ",";
-          _deleteVideo(videoToDelete, video);
-          videoToDelete = nextVideoToDelete;
-        }
-        UTIL.log("video(" + video.id + ") _makeVideoVisible(" + callingFunction + "): chain of deletes: " + chainOfDeletes);
-      }, timeoutLength);
+      window.setTimeout(_deleteUnneededVideos, timeoutLength);
     };
 
     var videoSeeking = function(event) {
@@ -1157,21 +1159,6 @@ if (!window['$']) {
         spinnerTimeoutId = window.setTimeout(function() {
           timelapse.showSpinner(viewerDivId);
         }, 250);
-        // TODO: stop streaming old videos
-        if (viewerType == "canvas") {
-          for (var videoId in activeVideos) {
-            if (videoId != currentVideoId && !activeVideos[videoId].ready) {
-              if (isIE9)
-                activeVideos[videoId].canDraw = false;
-              try {
-                activeVideos[videoId].pause();
-              } catch(e) {
-                UTIL.error(e.name + " while pausing " + activeVideos[videoId] + " in stall(). Most likely you are running IE 9.");
-              }
-              stopStreaming(activeVideos[videoId]);
-            }
-          }
-        }
         notifyStallEventListeners();
         _updateVideoAdvance();
       }

@@ -937,6 +937,8 @@ if (!window['$']) {
     this.setNewView = _setNewView;
 
     var _normalizeView = function(newView) {
+      if (!newView) return null;
+
       if (newView.center) {// Center view
         var newCenterView = newView.center;
         if (( typeof (tmJSON['projection-bounds']) !== 'undefined') && UTIL.isNumber(newCenterView.lat) && UTIL.isNumber(newCenterView.lng) && UTIL.isNumber(newView.zoom)) {
@@ -967,12 +969,12 @@ if (!window['$']) {
       if (datasetType == "modis" && customUI.getLocker() != "none")
         shareStr += '&l=' + customUI.getLocker();
       if (datasetType == "breathecam")
-        shareStr += '&d=' + settings["url"].match(/\d\d\d\d-\d\d-\d\d/);
+        shareStr += '&d=' + settings["url"].match(/\d\d\d\d-\d\d-\d\d/) + "&s=" + tmJSON['id'];
       return shareStr;
     };
     this.getShareView = getShareView;
 
-    // Extract a safe view from either a view object (i.e. {center:{x:val, y:val}, zoom:val}) or
+    // Extract a safe view from either a view object (e.g. {center:{x:val, y:val}, zoom:val}) or
     // from an array of strings (i.e. a share URL, such as #v=44.96185,59.06233,4.5,latLng&t=0.10,
     // that has been unpacked).
     var unsafeViewToView = function(unsafe_viewParam) {
@@ -1011,6 +1013,12 @@ if (!window['$']) {
           isLatLng ? tmpViewParam.push("latLng") : tmpViewParam.push("pts");
           unsafe_viewParam = tmpViewParam;
         }
+      }
+
+      // If we still have a share URL (e.g. #v=44.96185,59.06233,4.5,latLng&t=0.10)
+      // that has not been unpacked into an array of strings, do so now.
+      if (typeof(unsafe_viewParam) === "string") {
+        unsafe_viewParam = unsafe_viewParam.split(",");
       }
 
       if (unsafe_viewParam.indexOf("latLng") != -1) {
@@ -1357,13 +1365,18 @@ if (!window['$']) {
           viewerBottomPx = 100;
       }
 
-      if ($timeMachineDiv.css("position") == "static") {
+      var userDefinedtimeMachineDivWidth = UTIL.getElementStyle("#" + timeMachineDivId, "width");
+      var userDefinedtimeMachineDivHeight = UTIL.getElementStyle("#" + timeMachineDivId, "height");
+
+      // If the user does not specify width and height for the div containing the Time Machine,
+      // then default to the dimensions of the dataset specified in its json.
+      if ($timeMachineDiv.css("position") == "static" || userDefinedtimeMachineDivWidth == null || userDefinedtimeMachineDivHeight == null) {
         $timeMachineDiv.css({
           "position": "absolute",
           "top": "0px",
           "left": "0px",
-          "width": originalVideoWidth + "px",
-          "height": (originalVideoHeight + viewerBottomPx) + "px"
+          "width": userDefinedtimeMachineDivWidth ? userDefinedtimeMachineDivWidth : originalVideoWidth + "px",
+          "height": userDefinedtimeMachineDivHeight ? userDefinedtimeMachineDivHeight : (originalVideoHeight + viewerBottomPx) + "px"
         });
       }
 
@@ -2225,6 +2238,7 @@ if (!window['$']) {
       //UTIL.log("adding tile " + dumpTileidx(tileidx) + " from " + url + " and geom = (left:" + geom['left'] + " ,top:" + geom['top'] + ", width:" + geom['width'] + ", height:" + geom['height'] + ")");
       var video = videoset.addVideo(url, geom);
       video.tileidx = tileidx;
+      UTIL.log(videoset.videoName(video) + ': Added, with ' + getTileidxName(tileidx) + ' and url ' + url);
       return video;
     };
 
@@ -2332,6 +2346,10 @@ if (!window['$']) {
     var getTileidxParent = function(t) {
       return tileidxCreate(getTileidxLevel(t) - 1, getTileidxColumn(t) >> 1, getTileidxRow(t) >> 1);
     };
+
+    var getTileidxName = function(t) {
+      return 'tileidx(' + getTileidxLevel(t) + ',' + getTileidxRow(t) + ',' + getTileidxColumn(t) + ')';
+    }
 
     var dumpTileidx = function(t) {
       return "{l:" + getTileidxLevel(t) + ",c:" + getTileidxColumn(t) + ",r:" + getTileidxRow(t) + "}";
@@ -2553,7 +2571,7 @@ if (!window['$']) {
               settings["onTimeMachinePlayerReady"](timeMachineDivId);
             }
           }
-
+          loadTimelapseWithPreviousViewAndTime = false;
           hideSpinner(viewerDivId);
           if ( typeof onNewTimelapseLoadCompleteCallBack === "function")
             onNewTimelapseLoadCompleteCallBack();
@@ -2562,8 +2580,10 @@ if (!window['$']) {
 
       snaplapseForSharedTour = new org.gigapan.timelapse.Snaplapse(thisObj, settings, "noUI");
 
+      // Always add to the DOM. We need it when we display tours, even without the editor UI actually visible.
+      $("#" + videoDivId).append('<div class="snaplapse-annotation-description"><div></div></div>');
+
       if (editorEnabled) {
-        $("#" + videoDivId).append('<div class="snaplapse-annotation-description"><div></div></div>');
         snaplapse = new org.gigapan.timelapse.Snaplapse(thisObj, settings);
 
         // TODO:
