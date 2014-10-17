@@ -36,9 +36,6 @@
 "use strict";
 
 var cachedSnaplapses = {};
-var KEYFRAME_THUMBNAIL_WIDTH = 126;
-// should really be 56.25
-var KEYFRAME_THUMBNAIL_HEIGHT = 73;
 
 // Create the global symbol "org" if it doesn't exist.  Throw an error if it does exist but is not an object.
 var org;
@@ -116,6 +113,7 @@ if (!org.gigapan.timelapse.snaplapse) {
     var didOnce = false;
     var presentationSliderEnabled = timelapse.isPresentationSliderEnabled();
     var isHidingCustomUI = false;
+    var useTouchFriendlyUI = timelapse.useTouchFriendlyUI();
 
     // DOM elements
     var composerDivId = snaplapse.getComposerDivId();
@@ -125,6 +123,10 @@ if (!org.gigapan.timelapse.snaplapse) {
     var $videoSizeSelect;
     var $createSubtitle_dialog = $("#" + composerDivId + " .createSubtitle_dialog");
     var $keyframeContainer = $("#" + composerDivId + " .snaplapse_keyframe_container");
+
+    if (useTouchFriendlyUI)
+      timelapse.touchHorizontalScroll($keyframeContainer);
+
     var $toolbar = $("#" + composerDivId + " .toolbar");
 
     // Parameters
@@ -140,6 +142,8 @@ if (!org.gigapan.timelapse.snaplapse) {
       to: undefined
     };
     var toolbarHeight = $toolbar.outerHeight();
+    var KEYFRAME_THUMBNAIL_WIDTH = useTouchFriendlyUI ? 146 : 126;
+    var KEYFRAME_THUMBNAIL_HEIGHT = useTouchFriendlyUI ? 101 : 73;
 
     this.addEventListener = function(eventName, listener) {
       if (eventName && listener && typeof (listener) == "function") {
@@ -586,7 +590,7 @@ if (!org.gigapan.timelapse.snaplapse) {
           $("#" + composerDivId + " .toolbar .toggleMode .ui-button-text").text(getEditorModeText("tour"));
         $editorModeOptions.hide().menu();
         // Set the dropdown
-        $("#" + composerDivId + " .toolbar .editorModeOptions li a").click(function() {
+        $("#" + composerDivId + " .toolbar .editorModeOptions li").click(function() {
           var selectedModeTxt = $(this).text();
           if (selectedModeTxt == getEditorModeText("tour")) {
             setPresentationMode(false);
@@ -818,6 +822,7 @@ if (!org.gigapan.timelapse.snaplapse) {
     var setPresentationMode = function(status) {
       var $snaplapseContainer = $("#" + composerDivId + " .snaplapse_keyframe_container");
       if (status == true) {
+        snaplapse.setKeyframeTitleState("enable");
         startEditorFromPresentationMode = true;
         $("#" + composerDivId + " .toolbar .playStopTimewarp").hide();
         $("#" + viewerDivId + " .videoQualityContainer").hide();
@@ -827,6 +832,7 @@ if (!org.gigapan.timelapse.snaplapse) {
         if ($videoSizeSelect)
           $videoSizeSelect.find("option[value='750,530']").attr('selected', 'selected');
       } else {
+        snaplapse.setKeyframeTitleState("disable");
         startEditorFromPresentationMode = false;
         $("#" + composerDivId + " .toolbar .playStopTimewarp").show();
         $("#" + viewerDivId + " .videoQualityContainer").show();
@@ -1343,6 +1349,8 @@ if (!org.gigapan.timelapse.snaplapse) {
 
       if (usePresentationSlider)
         $("#" + keyframeListItem.id).addClass("snaplapse_keyframe_list_item_presentation");
+      if (useTouchFriendlyUI)
+        $(".snaplapse_keyframe_list_item_thumbnail_overlay_presentation").addClass("snaplapse_keyframe_list_item_thumbnail_overlay_presentation-touchFriendly");
 
       if (startEditorFromPresentationMode && !usePresentationSlider) {
         // Presentation editor only state
@@ -1614,10 +1622,12 @@ if (!org.gigapan.timelapse.snaplapse) {
           setKeyframeTitleUI(keyframe);
         }
         if (skipGo != true) {
-          if (usePresentationSlider && useCustomUI)
-            timelapse.setNewView(timelapse.pixelBoundingBoxToLatLngCenterView(keyframe['bounds']), false, false);
-          else
+          if (usePresentationSlider && useCustomUI) {
+            // TODO: Need to properly specify starting playback when clicking on the presentation slider
+            timelapse.setNewView(timelapse.pixelBoundingBoxToLatLngCenterView(keyframe['bounds']), false, useTouchFriendlyUI);
+          } else {
             timelapse.warpToBoundingBox(keyframe['bounds']);
+          }
           timelapse.seek(keyframe['time']);
           if (usePresentationSlider && doNotFireListener != true) {
             var listeners = eventListeners["slide-changed"];
@@ -1812,7 +1822,7 @@ if (!org.gigapan.timelapse.snaplapse) {
 
     var resizeUI = function() {
       var viewportHeight = timelapse.getViewportHeight();
-      var newTop = usePresentationSlider ? (viewportHeight + 4) : (viewportHeight - 2);
+      var newTop = usePresentationSlider ? (viewportHeight + (useTouchFriendlyUI ? -3 : 4)) : (viewportHeight - 2);
       $("#" + composerDivId).css({
         "position": "absolute",
         "top": newTop + "px",

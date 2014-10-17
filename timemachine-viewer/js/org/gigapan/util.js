@@ -103,6 +103,15 @@ if (!org.gigapan) {
     return (navigator.userAgent.match(/Android/i) || navigator.userAgent.match(/webOS/i) || navigator.userAgent.match(/iPhone/i) || navigator.userAgent.match(/iPad/i) || navigator.userAgent.match(/iPod/i) || navigator.userAgent.match(/BlackBerry/i) || navigator.userAgent.match(/Windows Phone/i));
   };
 
+  org.gigapan.Util.isTouchDevice = function() {
+    try{
+      document.createEvent("TouchEvent");
+      return true;
+    }catch(e){
+      return false;
+    }
+  };
+
   org.gigapan.Util.browserSupported = function(forcedMediaType) {
     var v = document.createElement('video');
     // We do not support mobile devices (Android, iOS, etc) due to their OS limitations
@@ -491,6 +500,20 @@ if (!org.gigapan) {
       return styleValue ? styleValue : null;
     }
     return null;
+  }
+
+  // Convert relative paths to absolute ones.
+  org.gigapan.Util.relativeToAbsolutePath = function(url) {
+    var loc = location.href;
+    loc = loc.substring(0, loc.lastIndexOf('/'));
+    while (/^\.*\//.test(url)) {
+      var numToChop = (url.substr(0,2) == "./") ? 2 : 3;
+      // We are of the form ../ and need to backtrack a level.
+      if (numToChop == 3)
+        loc = loc.substring(0, loc.lastIndexOf('/'));
+      url = url.substring(numToChop);
+    }
+    return loc + '/' + url;
   }
 
   // Compute the root URL for where all the Time Machine files exist.
