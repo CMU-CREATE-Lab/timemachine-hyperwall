@@ -327,9 +327,10 @@
       var mode = "player";
       var tourJSON;
       var originalPageX;
-      var locationServiceID_exploratorium = "6220332415320064";
-      var locationServiceID_test = "5634387206995968";
-      var currentLocationServiceID = locationServiceID_exploratorium;
+      // TODO: Settings left here for reference. This value is now stored in config.json
+      //var locationServiceID_exploratorium = "6220332415320064";
+      //var locationServiceID_test = "5634387206995968";
+      var currentLocationServiceID;
 
       // DOM elements
       var $toursSliderContainer;
@@ -1070,11 +1071,15 @@
           // Stop the auto mode
           setDoAutoMode(false);
         });
-        readServerData();
-        preProcessLandsat();
-        createCustomControl();
+        $.ajax({
+          url: "config.json"
+        }).done(function(data) {
+          currentLocationServiceID = data.currentLocationServiceID;
+          readServerData();
+          preProcessLandsat();
+          createCustomControl();
+        });
       }
-
       $(init);
     </script>
   </head>

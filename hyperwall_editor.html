@@ -86,8 +86,12 @@
     <script type="text/javascript">
       jQuery.support.cors = true;
 
-      // Landsat ("https" will casue the thumbnail loading from the server fail)
+      // Landsat ("https" will casue the thumbnail loading from the server to fail)
       var url = "http://earthengine.google.org/timelapse/data/20130507/";
+      // TODO: Settings left here for reference. This value is now stored in config.json
+      //var locationServiceID_exploratorium = "6220332415320064";
+      //var locationServiceID_test = "5634387206995968";
+      var currentLocationServiceID;
 
       // Use local files
       // Be sure to uncomment mediaType: ".mp4" below
@@ -105,7 +109,12 @@
           //mediaType: ".mp4",
           enableEditor: true,
           onTimeMachinePlayerReady: function(viewerDivId) {
-            loginToLocationServer();
+            $.ajax({
+              url: "config.json"
+            }).done(function(data) {
+              currentLocationServiceID = data.currentLocationServiceID;
+              loginToLocationServer();
+            });
           },
           scaleBarOptions: {
             scaleBarDiv: "scaleBar1"
@@ -128,10 +137,6 @@
             loginAndUpdateServer();
         });
       }
-
-      var locationServiceID_exploratorium = "6220332415320064";
-      var locationServiceID_test = "5634387206995968";
-      var currentLocationServiceID = locationServiceID_exploratorium;
 
       function loginToLocationServer() {
         $.ajax({
