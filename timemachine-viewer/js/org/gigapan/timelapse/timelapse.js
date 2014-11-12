@@ -141,6 +141,7 @@ if (!window['$']) {
     var datasetType = settings["datasetType"];
     var useCustomUI = (settings["datasetType"] == "landsat" || settings["datasetType"] == "modis");
     var useTouchFriendlyUI = ( typeof (settings["useTouchFriendlyUI"]) == "undefined") ? false : settings["useTouchFriendlyUI"];
+    var thumbnailServerRootTileUrl = ( typeof (settings["thumbnailServerRootTileUrl"]) == "undefined") ? settings["url"] : settings["thumbnailServerRootTileUrl"];
     var visualizerGeometry = {
       width: 250,
       height: 142
@@ -195,6 +196,7 @@ if (!window['$']) {
     var loadTimelapseWithPreviousViewAndTime = false;
     var didHashChangeFirstTimeOnLoad = false;
     var didFirstTimeOnLoad = false;
+    var isMovingToWaypoint = false;
 
     // Viewer
     var viewerDivId = timeMachineDivId + " .player";
@@ -226,6 +228,7 @@ if (!window['$']) {
     var viewChangeListeners = [];
     var viewEndChangeListeners = [];
     var playbackRateChangeListeners = [];
+    var zoomChangeListeners = [];
     var thisObj = this;
     var tmJSON;
     var datasetJSON = null;
@@ -303,13 +306,18 @@ if (!window['$']) {
     var hasTouchSupport = UTIL.isTouchDevice();
     var tapped = false;
     var lastDist = null;
-    var pinchPoint = null;
     var draggingSlider = false;
+    var lastLocation;
+    var thisLocation;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // Public methods
     //
+    this.isMovingToWaypoint = function() {
+      return isMovingToWaypoint;
+    };
+
     this.useTouchFriendlyUI = function() {
       return useTouchFriendlyUI;
     };
@@ -549,8 +557,10 @@ if (!window['$']) {
     };
 
     var stopParabolicMotion = function() {
-      if (parabolicMotionController)
+      if (parabolicMotionController) {
+        isMovingToWaypoint = false;
         parabolicMotionController._disableAnimation();
+      }
     };
     this.stopParabolicMotion = stopParabolicMotion;
 
@@ -763,7 +773,6 @@ if (!window['$']) {
         case "touchcancel":
         case "touchend":
           mouseEvent = "mouseup";
-          pinchPoint = null;
           lastDist = null;
           if (thisTouchCount == 1) {
             // Handle going from 2 fingers to 1 finger pan.
@@ -785,18 +794,20 @@ if (!window['$']) {
           if (thisTouchCount == 1) {
             // Translate
           } else if (thisTouchCount == 2) {
-            // Pinch
-            // TODO: Two finger pan support
-
-            if (pinchPoint == null) {
-              pinchPoint = {"pageX" : ((e.touches[0].pageX + e.touches[1].pageX) / 2), "pageY" : ((e.touches[0].pageY + e.touches[1].pageY) / 2)};
-            }
             var dist = Math.abs(Math.sqrt((e.touches[0].pageX - e.touches[1].pageX) * (e.touches[0].pageX - e.touches[1].pageX) + (e.touches[0].pageY - e.touches[1].pageY) * (e.touches[0].pageY - e.touches[1].pageY)));
+            thisLocation = {pageX: (e.touches[0].pageX + e.touches[1].pageX) / 2,
+                            pageY: (e.touches[0].pageY + e.touches[1].pageY) / 2};
             if (lastDist) {
+              // Zoom
               var zoom = dist / lastDist;
-              zoomAbout(zoom, pinchPoint.pageX, pinchPoint.pageY);
+              zoomAbout(zoom, thisLocation.pageX, thisLocation.pageY);
+              // Translate
+              targetView.x += (lastLocation.pageX - thisLocation.pageX) / view.scale;
+              targetView.y += (lastLocation.pageY - thisLocation.pageY) / view.scale;
+              setTargetView(targetView);
             }
             lastDist = dist;
+            lastLocation = thisLocation;
             return;
           } else {
             // TODO: More than 2 finger support
@@ -920,7 +931,7 @@ if (!window['$']) {
     };
     this.addViewEndChangeListener = _addViewEndChangeListener;
 
-    var _removeEndViewChangeListener = function(listener) {
+    var _removeViewEndChangeListener = function(listener) {
       for (var i = 0; i < viewEndChangeListeners.length; i++) {
         if (viewEndChangeListeners[i] == listener[0]) {
           viewEndChangeListeners.splice(i, 1);
@@ -928,17 +939,42 @@ if (!window['$']) {
         }
       }
     };
-    this.removeEndViewChangeListener = _removeEndViewChangeListener;
+    this.removeViewEndChangeListener = _removeViewEndChangeListener;
+
+    var _addZoomChangeListener = function(listener) {
+      zoomChangeListeners.push(listener);
+    };
+    this.addZoomChangeListener = _addZoomChangeListener;
+
+    var _removeZoomChangeListener = function(listener) {
+      for (var i = 0; i < zoomChangeListeners.length; i++) {
+        if (zoomChangeListeners[i] == listener[0]) {
+          zoomChangeListeners.splice(i, 1);
+          break;
+        }
+      }
+    };
+    this.removeZoomChangeListener = _removeZoomChangeListener;
 
     var _addVideoPauseListener = function(listener) {
       videoset.addEventListener('videoset-pause', listener);
     };
     this.addVideoPauseListener = _addVideoPauseListener;
 
+    var _removeVideoPauseListener = function(listener) {
+      videoset.removeEventListener('videoset-pause', listener);
+    };
+    this.removeVideoPauseListener = _removeVideoPauseListener;
+
     var _addVideoPlayListener = function(listener) {
       videoset.addEventListener('videoset-play', listener);
     };
     this.addVideoPlayListener = _addVideoPlayListener;
+
+    var _removeVideoPlayListener = function(listener) {
+      videoset.removeEventListener('videoset-play', listener);
+    };
+    this.removeVideoPlayListener = _removeVideoPlayListener;
 
     var _makeVideoVisibleListener = function(listener) {
       videoset.addEventListener('video-made-visible', listener);
@@ -995,7 +1031,8 @@ if (!window['$']) {
       newView = _normalizeView(newView);
 
       var defaultEndViewCallback = function() {
-        _removeEndViewChangeListener(this);
+        isMovingToWaypoint = false;
+        _removeViewEndChangeListener(this);
         parabolicMotionController = null;
         if (doPlay)
           thisObj.handlePlayPause();
@@ -1026,6 +1063,7 @@ if (!window['$']) {
           var b = parabolicMotionObj.viewToPixelPoint(viewportWidth, viewportHeight, newView);
           var path = org.gigapan.timelapse.parabolicMotion.computeParabolicPath(a, b);
           parabolicMotionController.moveAlongPath(path);
+          isMovingToWaypoint = true;
         }
       }
     };
@@ -1178,7 +1216,7 @@ if (!window['$']) {
           width = 126;
         if (!height)
           height = 73;
-        return snaplapseViewer.generateThumbnailURL(tileRootPath, thisObj.getBoundingBoxForCurrentView(), width, height, thisObj.getCurrentTime().toFixed(2));
+        return snaplapseViewer.generateThumbnailURL(thumbnailServerRootTileUrl, thisObj.getBoundingBoxForCurrentView(), width, height, thisObj.getCurrentTime().toFixed(2));
       }
     };
 
@@ -1487,28 +1525,32 @@ if (!window['$']) {
 
       resizeViewer();
 
-      window.onresize = function() {
-        if (viewportWidth == $viewerDiv.width() && viewportHeight == $viewerDiv.height())
-          return;
-        resizeViewer();
-        // TODO implement a resize listener and put this in the snaplapseViewer class
-        if (snaplapse)
-          snaplapse.getSnaplapseViewer().resizeUI();
-        // TODO implement a resize listener and put this in the snaplapseViewer class
-        if (snaplapseForPresentationSlider)
-          snaplapseForPresentationSlider.getSnaplapseViewer().resizeUI();
-        // TODO implement a resize listener and put this in the scaleBar class
-        if (scaleBar)
-          scaleBar.updateCachedVideoSize();
-        // TODO implement a resize listener and put this in the visualizer class
-        if (visualizer && defaultUI)
-          visualizer.setMode(defaultUI.getMode(), false);
-        // TODO implement a resize listener and put this in the annotator class
-        if (annotator)
-          annotator.resizeUI();
-        updateLocationContextUI();
-      };
+      window.onresize = onresize;
     };
+
+    var onresize  = function() {
+      var $viewerDiv = $("#" + viewerDivId);
+      if (viewportWidth == $viewerDiv.width() && viewportHeight == $viewerDiv.height())
+        return;
+      resizeViewer();
+      // TODO implement a resize listener and put this in the snaplapseViewer class
+      if (snaplapse)
+        snaplapse.getSnaplapseViewer().resizeUI();
+      // TODO implement a resize listener and put this in the snaplapseViewer class
+      if (snaplapseForPresentationSlider)
+        snaplapseForPresentationSlider.getSnaplapseViewer().resizeUI();
+      // TODO implement a resize listener and put this in the scaleBar class
+      if (scaleBar)
+        scaleBar.updateCachedVideoSize();
+      // TODO implement a resize listener and put this in the visualizer class
+      if (visualizer && defaultUI)
+        visualizer.setMode(defaultUI.getMode(), false);
+      // TODO implement a resize listener and put this in the annotator class
+      if (annotator)
+        annotator.resizeUI();
+      updateLocationContextUI();
+    };
+    this.onresize = onresize;
 
     var setInitialView = function() {
       if (initialView) {
@@ -1522,7 +1564,6 @@ if (!window['$']) {
 
     var resizeViewer = function() {
       var $viewerDiv = $("#" + viewerDivId);
-
       viewportWidth = $viewerDiv.width();
       viewportHeight = $viewerDiv.height();
 
@@ -1727,7 +1768,6 @@ if (!window['$']) {
     this.handleMousedownEvent = handleMousedownEvent;
 
     var zoomAbout = function(zoom, x, y, isFromGoogleMap) {
-      //if (videoset.isStalled()) return;
       var newScale = limitScale(targetView.scale * zoom);
       var actualZoom = newScale / targetView.scale;
       // We want to zoom to the center of the current view if we zoom from google map
@@ -1737,6 +1777,8 @@ if (!window['$']) {
       }
       targetView.scale = newScale;
       setTargetView(targetView);
+      for (var i = 0; i < zoomChangeListeners.length; i++)
+        zoomChangeListeners[i](targetView);
     };
     this.zoomAbout = zoomAbout;
 

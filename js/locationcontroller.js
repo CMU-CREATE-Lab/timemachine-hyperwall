@@ -72,10 +72,11 @@ if (fields.master) {
     var tourJSON = JSON.parse(snaplapseForSharedTour.urlStringToJSON(presentation));
     var tourJSON = tourJSON.snaplapse;
     var settings = timelapse.getSettings();
+    var thumbnailServerRootTileUrl = ( typeof (settings["thumbnailServerRootTileUrl"]) == "undefined") ? settings["url"] : settings["thumbnailServerRootTileUrl"];
     for (var i = 0; i < tourJSON.keyframes.length; i++) {
       var keyframe = tourJSON.keyframes[i];
       keyframe.centerView = timelapse.pixelBoundingBoxToLatLngCenterView(keyframe.bounds);
-      keyframe.thumbnailURL = snaplapseViewerForSharedTour.generateThumbnailURL(settings["url"], keyframe.bounds, 260, 185, keyframe.time);
+      keyframe.thumbnailURL = snaplapseViewerForSharedTour.generateThumbnailURL(thumbnailServerRootTileUrl, keyframe.bounds, 260, 185, keyframe.time);
     }
     controlReciever.emit('returnDecodeTour', tourJSON);
   });
